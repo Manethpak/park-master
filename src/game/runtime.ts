@@ -1,0 +1,256 @@
+import { Color, Vec3 } from 'playcanvas';
+import type { Application, ContactResult, Entity } from 'playcanvas';
+
+import { ASSETS, CAR_LENGTH, CAR_WIDTH } from './assets.ts';
+import { DRIVING, stepSpeed, stepSteering, steeringYawRate } from './driving.ts';
+import { mouseSteering } from './rules.ts';
+import type { ParkingGame } from './session.ts';
+import type { GamePhase, Triple } from './types.ts';
+
+export type ResetBody = { entity: Entity; position: Triple; heading: number };
+
+export function getHeading(entity: Entity) {
+    const forward = entity.forward;
+    return ((Math.atan2(-forward.x, -forward.z) * 180) / Math.PI + 360) % 360;
+}
+
+/** Owns mutable Engine state and input; React only mounts and disposes this runtime. */
+export class ParkingRuntime {
+    private app: Application;
+    private game: ParkingGame;
+    private player: Entity;
+    private camera: Entity;
+    private bodies: Map<string, ResetBody>;
+    private canvas: HTMLCanvasElement;
+    private keys = new Set<string>();
+    private steeringInput = 0;
+    private steering = 0;
+    private wheelRoll = 0;
+    private resetRevision = -1;
+    private initialized = false;
+    private wheels: Entity[] = [];
+    private cameraTarget = new Vec3(-1, 0, 0);
+    private velocity = new Vec3();
+    private angular = new Vec3();
+    private previousPhase: GamePhase;
+    private lastClock = performance.now();
+    private unsubscribe: () => void;
+
+    constructor(app: Application, game: ParkingGame, player: Entity, camera: Entity, bodies: Map<string, ResetBody>) {
+        this.app = app;
+        this.game = game;
+        this.player = player;
+        this.camera = camera;
+        this.bodies = bodies;
+        this.canvas = app.graphicsDevice.canvas as HTMLCanvasElement;
+        this.previousPhase = game.session.phase;
+        app.scene.ambientLight = new Color(0.66, 0.71, 0.77);
+        app.scene.exposure = 1;
+        app.maxDeltaTime = 0.1;
+        if (app.systems.rigidbody) {
+            app.systems.rigidbody.fixedTimeStep = 1 / 120;
+            app.systems.rigidbody.maxSubSteps = 8;
+        }
+        app.graphicsDevice.maxPixelRatio = Math.min(window.devicePixelRatio, 2);
+        app.resizeCanvas();
+        this.canvas.tabIndex = 0;
+        this.canvas.setAttribute('aria-label', 'Parking game. W and S drive, mouse steers, Space brakes.');
+        window.addEventListener('keydown', this.keyDown);
+        window.addEventListener('keyup', this.keyUp);
+        window.addEventListener('blur', this.blur);
+        document.addEventListener('visibilitychange', this.visibility);
+        this.canvas.addEventListener('pointermove', this.pointerMove);
+        this.canvas.addEventListener('pointerleave', this.clearInput);
+        this.canvas.addEventListener('pointerdown', this.focusCanvas);
+        app.on('update', this.update);
+        this.unsubscribe = game.subscribe(this.syncPhase);
+        this.exposeTestApi();
+    }
+
+    private clearInput = () => {
+        this.keys.clear();
+        this.steeringInput = 0;
+    };
+    private focusCanvas = () => this.canvas.focus();
+    private blur = () => {
+        this.clearInput();
+        this.game.pause();
+    };
+    private visibility = () => {
+        if (document.hidden) this.blur();
+    };
+    private isUi(target: EventTarget | null) {
+        return target instanceof HTMLElement && Boolean(target.closest('button, input, a, [role="dialog"]'));
+    }
+
+    private keyDown = (event: KeyboardEvent) => {
+        if (this.isUi(event.target) && !['Escape', 'KeyR'].includes(event.code)) return;
+        if (['KeyW', 'KeyS', 'ArrowUp', 'ArrowDown', 'Space', 'Escape', 'KeyR'].includes(event.code))
+            event.preventDefault();
+        if (event.code === 'Escape' && !event.repeat) {
+            this.clearInput();
+            this.game.togglePause();
+        } else if (event.code === 'KeyR' && !event.repeat) {
+            this.clearInput();
+            this.game.start();
+            this.focusCanvas();
+        } else if (this.game.session.phase === 'playing') this.keys.add(event.code);
+    };
+
+    private keyUp = (event: KeyboardEvent) => {
+        this.keys.delete(event.code);
+    };
+    private pointerMove = (event: PointerEvent) => {
+        if (this.isUi(event.target)) {
+            this.steeringInput = 0;
+            return;
+        }
+        const rect = this.canvas.getBoundingClientRect();
+        this.steeringInput = mouseSteering(event.clientX, rect.left, rect.width);
+    };
+
+    private collisionStart = (result: ContactResult) => {
+        if (['ground', 'court-floor', 'approach-floor'].includes(result.other.name)) return;
+        this.game.impact(result.other.guid);
+    };
+    private collisionEnd = (other: Entity) => this.game.contacts.leave(other.guid);
+
+    private syncPhase = () => {
+        const phase = this.game.session.phase;
+        this.app.timeScale = phase === 'playing' ? 1 : 0;
+        if (phase !== this.previousPhase) {
+            this.clearInput();
+            this.previousPhase = phase;
+            this.lastClock = performance.now();
+        }
+        if (this.initialized && this.resetRevision !== this.game.resetRevision) this.reset();
+    };
+
+    private reset() {
+        for (const { entity, position, heading } of this.bodies.values()) {
+            if (!entity.rigidbody) continue;
+            entity.rigidbody.teleport(...position, 0, heading, 0);
+            entity.rigidbody.linearVelocity = Vec3.ZERO;
+            entity.rigidbody.angularVelocity = Vec3.ZERO;
+        }
+        this.resetRevision = this.game.resetRevision;
+        this.steering = 0;
+        this.wheelRoll = 0;
+        this.wheels.forEach((wheel) => wheel.setLocalEulerAngles(0, 0, 0));
+        this.clearInput();
+        this.game.contacts.reset();
+    }
+
+    private update = (dt: number) => {
+        const now = performance.now();
+        const clockDt = Math.max(0, (now - this.lastClock) / 1000);
+        this.lastClock = now;
+        const body = this.player.rigidbody;
+        if (!body?.body || !this.camera.camera) return;
+        if (!this.initialized) {
+            this.initialized = true;
+            this.wheels = ['wheel-front-left', 'wheel-front-right', 'wheel-back-left', 'wheel-back-right']
+                .map((name) => this.player.findByName(name))
+                .filter((wheel): wheel is Entity => Boolean(wheel));
+            this.player.collision?.on('collisionstart', this.collisionStart);
+            this.player.collision?.on('collisionend', this.collisionEnd);
+            this.game.ready();
+        }
+        if (this.resetRevision !== this.game.resetRevision) this.reset();
+        const phase = this.game.session.phase;
+        const heading = getHeading(this.player);
+        const radians = (heading * Math.PI) / 180;
+        const fx = Math.sin(radians);
+        const fz = Math.cos(radians);
+        const position = this.player.getPosition();
+        const longitudinal = body.linearVelocity.x * fx + body.linearVelocity.z * fz;
+        if (phase === 'playing' && dt > 0) {
+            const forward = this.keys.has('KeyW') || this.keys.has('ArrowUp');
+            const reverse = this.keys.has('KeyS') || this.keys.has('ArrowDown');
+            const throttle = Number(forward) - Number(reverse);
+            const speed = stepSpeed(longitudinal, throttle, this.keys.has('Space'), dt);
+            this.steering = stepSteering(this.steering, this.steeringInput, dt);
+            const grip = Math.exp(-DRIVING.lateralGrip * dt);
+            body.linearVelocity = this.velocity.set(
+                fx * speed + (body.linearVelocity.x - fx * longitudinal) * grip,
+                0,
+                fz * speed + (body.linearVelocity.z - fz * longitudinal) * grip
+            );
+            const yawRate = steeringYawRate(speed, this.steering, 1.32 * ASSETS.sedan.scale);
+            body.angularVelocity = this.angular.set(0, yawRate, 0);
+            this.wheelRoll += (((speed * dt) / (0.3 * ASSETS.sedan.scale)) * 180) / Math.PI;
+            this.wheels.forEach((wheel, index) =>
+                wheel.setLocalEulerAngles(this.wheelRoll % 360, index < 2 ? this.steering : 0, 0)
+            );
+            this.game.tick(
+                clockDt,
+                {
+                    x: position.x,
+                    z: position.z,
+                    heading,
+                    width: CAR_WIDTH,
+                    length: CAR_LENGTH,
+                    speed: Math.hypot(body.linearVelocity.x, body.linearVelocity.z)
+                },
+                this.steering / DRIVING.maximumSteering
+            );
+        }
+        const visualDt = dt || 1 / 60;
+        const overview = phase === 'ready';
+        const blend = 1 - Math.exp(-4 * visualDt);
+        this.cameraTarget.x += ((overview ? -1 : position.x + fx * 1.5) - this.cameraTarget.x) * blend;
+        this.cameraTarget.z += ((overview ? 1 : position.z + fz * 1.5) - this.cameraTarget.z) * blend;
+        this.camera.setPosition(this.cameraTarget.x + 16, 27, this.cameraTarget.z + 17.5);
+        this.camera.lookAt(this.cameraTarget.x, 0, this.cameraTarget.z);
+        const aspect = this.canvas.clientWidth / this.canvas.clientHeight;
+        const desiredHeight = (overview ? 20.5 : 12.5) * Math.max(1, 1.3 / aspect);
+        this.camera.camera.orthoHeight += (desiredHeight - this.camera.camera.orthoHeight) * blend;
+    };
+
+    private exposeTestApi() {
+        if (!import.meta.env.DEV || import.meta.env.VITE_E2E !== 'true') return;
+        Object.assign(window, {
+            __parkTest: {
+                snapshot: () => ({
+                    ...this.game.session,
+                    car: this.player.getPosition().toArray(),
+                    heading: getHeading(this.player),
+                    props: [...this.bodies].map(([id, body]) => ({
+                        id,
+                        position: body.entity.getPosition().toArray()
+                    })),
+                    meshes: this.app.root.findComponents('render').length,
+                    wheelAngles: this.wheels.map((wheel) => wheel.getLocalEulerAngles().toArray())
+                }),
+                teleport: (x: number, z: number, heading: number) => {
+                    const body = this.player.rigidbody;
+                    if (!body) return;
+                    body.teleport(x, (ASSETS.sedan.dimensions[1] * ASSETS.sedan.scale) / 2, z, 0, heading, 0);
+                    body.linearVelocity = Vec3.ZERO;
+                    body.angularVelocity = Vec3.ZERO;
+                    this.game.contacts.reset();
+                },
+                setRemaining: (seconds: number) => {
+                    this.game.session.remaining = seconds;
+                },
+                app: this.app
+            }
+        });
+    }
+
+    destroy() {
+        this.unsubscribe();
+        this.app.off('update', this.update);
+        this.player.collision?.off('collisionstart', this.collisionStart);
+        this.player.collision?.off('collisionend', this.collisionEnd);
+        window.removeEventListener('keydown', this.keyDown);
+        window.removeEventListener('keyup', this.keyUp);
+        window.removeEventListener('blur', this.blur);
+        document.removeEventListener('visibilitychange', this.visibility);
+        this.canvas.removeEventListener('pointermove', this.pointerMove);
+        this.canvas.removeEventListener('pointerleave', this.clearInput);
+        this.canvas.removeEventListener('pointerdown', this.focusCanvas);
+        this.app.timeScale = 1;
+        if (import.meta.env.DEV && import.meta.env.VITE_E2E === 'true') Reflect.deleteProperty(window, '__parkTest');
+    }
+}
