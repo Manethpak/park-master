@@ -36,7 +36,9 @@ export function advanceParkingHold(hold: number, valid: boolean, dt: number) {
 }
 
 export function mouseSteering(clientX: number, left: number, width: number) {
-    const offset = (clientX - left - width / 2) / (width * 0.3);
+    // Full lock within a small, consistent distance of center, even on wide displays.
+    const range = Math.min(240, width / 2);
+    const offset = (clientX - left - width / 2) / Math.max(1, range);
     const deadZone = 0.08;
     return Math.abs(offset) <= deadZone
         ? 0

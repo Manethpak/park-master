@@ -19,6 +19,7 @@ export class ParkingGame {
     private initialSession(phase: GameSession['phase']): GameSession {
         return {
             phase,
+            hasMoved: false,
             remaining: this.level.timeLimit,
             impacts: 0,
             score: 1000,
@@ -93,19 +94,23 @@ export class ParkingGame {
     tick(dt: number, pose: CarPose, steering: number) {
         if (this.session.phase !== 'playing') return;
         this.contacts.advance(dt);
-        this.session.remaining = Math.max(0, this.session.remaining - dt);
+        // Ignore tiny physics settling; once driving starts, stops do not pause the attempt.
+        this.session.hasMoved ||= pose.speed > 0.05;
+        if (this.session.hasMoved) this.session.remaining = Math.max(0, this.session.remaining - dt);
         this.session.speed = pose.speed;
         this.session.steering = steering;
         this.session.impactFlash = Math.max(0, this.session.impactFlash - dt);
         const parking = checkParking(pose, this.level.bay);
         this.session.parkingProgress = advanceParkingHold(this.session.parkingProgress, parking.valid, dt);
-        this.session.parkingHint = !parking.contained
-            ? 'Find the green bay'
-            : !parking.aligned
-              ? 'Face the arrow'
-              : !parking.stopped
-                ? 'Brake and hold still'
-                : 'Perfect. Hold it…';
+        this.session.parkingHint = !this.session.hasMoved
+            ? 'Drive to start the clock'
+            : !parking.contained
+              ? 'Find the green bay'
+              : !parking.aligned
+                ? 'Face the arrow'
+                : !parking.stopped
+                  ? 'Brake and hold still'
+                  : 'Perfect. Hold it…';
         this.session.score = calculateScore(
             this.session.remaining,
             this.level.timeLimit,

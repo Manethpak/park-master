@@ -99,6 +99,7 @@ test('parking and scoring are consistent across 30, 60, and 120 FPS', () => {
         const game = new ParkingGame(level);
         game.ready();
         game.start();
+        game.tick(0, { ...car, speed: 1 }, 0);
         for (let i = 0; i < fps + 1; i++) game.tick(1 / fps, car, 0);
         assert.equal(game.session.phase, 'won');
         assert.ok(game.session.remaining >= 88.9 && game.session.remaining <= 89.01);
@@ -110,7 +111,7 @@ test('pause freezes time and parking progress, and victory freezes the score', (
     const game = new ParkingGame(level);
     game.ready();
     game.start();
-    game.tick(0.5, car, 0);
+    game.tick(0.5, { ...car, speed: 0.1 }, 0);
     game.pause();
     game.tick(20, car, 0);
     assert.equal(game.session.remaining, 89.5);
@@ -131,7 +132,7 @@ test('timeout takes precedence at zero and restart clears all gameplay state', (
     game.impact('fence');
     game.impact('fence');
     assert.equal(game.session.impacts, 1);
-    game.tick(90, car, 0);
+    game.tick(90, { ...car, speed: 0.1 }, 0);
     assert.equal(game.session.phase, 'lost');
     assert.equal(game.session.score, 0);
     game.start();

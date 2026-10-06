@@ -80,7 +80,7 @@ export class ParkingRuntime {
         if (document.hidden) this.blur();
     };
     private isUi(target: EventTarget | null) {
-        return target instanceof HTMLElement && Boolean(target.closest('button, input, a, [role="dialog"]'));
+        return target instanceof HTMLElement && Boolean(target.closest('button, input, select, textarea, a, [role="dialog"]'));
     }
 
     private keyDown = (event: KeyboardEvent) => {
@@ -110,7 +110,7 @@ export class ParkingRuntime {
     };
 
     private collisionStart = (result: ContactResult) => {
-        if (['ground', 'court-floor', 'approach-floor'].includes(result.other.name)) return;
+        if (this.game.level.surfaces?.some((surface) => surface.support && surface.id === result.other.name)) return;
         this.game.impact(result.other.guid);
     };
     private collisionEnd = (other: Entity) => this.game.contacts.leave(other.guid);
@@ -163,6 +163,7 @@ export class ParkingRuntime {
         const fx = Math.sin(radians);
         const fz = Math.cos(radians);
         const position = this.player.getPosition();
+        const actualSpeed = Math.hypot(body.linearVelocity.x, body.linearVelocity.z);
         const longitudinal = body.linearVelocity.x * fx + body.linearVelocity.z * fz;
         if (phase === 'playing' && dt > 0) {
             const forward = this.keys.has('KeyW') || this.keys.has('ArrowUp');
@@ -190,7 +191,7 @@ export class ParkingRuntime {
                     heading,
                     width: CAR_WIDTH,
                     length: CAR_LENGTH,
-                    speed: Math.hypot(body.linearVelocity.x, body.linearVelocity.z)
+                    speed: actualSpeed
                 },
                 this.steering / DRIVING.maximumSteering
             );
@@ -198,8 +199,8 @@ export class ParkingRuntime {
         const visualDt = dt || 1 / 60;
         const overview = phase === 'ready';
         const blend = 1 - Math.exp(-4 * visualDt);
-        this.cameraTarget.x += ((overview ? -1 : position.x + fx * 1.5) - this.cameraTarget.x) * blend;
-        this.cameraTarget.z += ((overview ? 1 : position.z + fz * 1.5) - this.cameraTarget.z) * blend;
+        this.cameraTarget.x += ((overview ? (this.game.level.spawn.position[0] + this.game.level.bay.x) / 2 : position.x + fx * 1.5) - this.cameraTarget.x) * blend;
+        this.cameraTarget.z += ((overview ? (this.game.level.spawn.position[2] + this.game.level.bay.z) / 2 : position.z + fz * 1.5) - this.cameraTarget.z) * blend;
         this.camera.setPosition(this.cameraTarget.x + 16, 27, this.cameraTarget.z + 17.5);
         this.camera.lookAt(this.cameraTarget.x, 0, this.cameraTarget.z);
         const aspect = this.canvas.clientWidth / this.canvas.clientHeight;
@@ -213,6 +214,18 @@ export class ParkingRuntime {
             __parkTest: {
                 snapshot: () => ({
                     ...this.game.session,
+                    level: { id: this.game.level.id, name: this.game.level.name, spawn: this.game.level.spawn, bay: this.game.level.bay },
+                    roads: this.game.level.objects.filter((object) => object.asset.startsWith('road')).map((object) => {
+                        const entity = this.app.root.findByName(object.id) as Entity;
+                        const bounds = entity.findComponents('render').flatMap((render) => render.meshInstances.map((mesh) => mesh.aabb));
+                        return {
+                            id: object.id, position: entity.getPosition().toArray(), heading: getHeading(entity),
+                            dimensions: ['x', 'y', 'z'].map((axis) => {
+                                const key = axis as 'x' | 'y' | 'z';
+                                return Math.max(...bounds.map((bound) => bound.center[key] + bound.halfExtents[key])) - Math.min(...bounds.map((bound) => bound.center[key] - bound.halfExtents[key]));
+                            })
+                        };
+                    }),
                     car: this.player.getPosition().toArray(),
                     heading: getHeading(this.player),
                     props: [...this.bodies].map(([id, body]) => ({

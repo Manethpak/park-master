@@ -1,0 +1,629 @@
+{
+  "schemaVersion": 1,
+  "id": "courtyard-01",
+  "name": "The Courtyard",
+  "timeLimit": 90,
+  "impactPenalty": 50,
+  "spawn": {
+    "position": [
+      -7.1,
+      0,
+      14
+    ],
+    "heading": 180
+  },
+  "bay": {
+    "x": 4.2,
+    "z": -8.1,
+    "width": 3.4,
+    "length": 5.7,
+    "heading": 0
+  },
+  "objects": [
+    {
+      "id": "parked-left",
+      "asset": "sedan",
+      "position": [
+        0.3,
+        0,
+        -8.1
+      ],
+      "heading": 0,
+      "body": "static"
+    },
+    {
+      "id": "parked-right",
+      "asset": "suv",
+      "position": [
+        8.1,
+        0,
+        -8.1
+      ],
+      "heading": 0,
+      "body": "static"
+    },
+    {
+      "id": "parked-entrance",
+      "asset": "taxi",
+      "position": [
+        -2.6,
+        0,
+        7.5
+      ],
+      "heading": 180,
+      "body": "static"
+    },
+    {
+      "id": "island-tree",
+      "asset": "treeSmall",
+      "position": [
+        -6.1,
+        0.44,
+        -0.8
+      ],
+      "heading": 0
+    },
+    {
+      "id": "warning-sign",
+      "asset": "sign",
+      "position": [
+        -3.7,
+        0,
+        5.8
+      ],
+      "heading": 90,
+      "body": "static"
+    },
+    {
+      "id": "cone-1",
+      "asset": "cone",
+      "position": [
+        -6.1,
+        0,
+        3.7
+      ],
+      "heading": 0,
+      "body": "dynamic",
+      "mass": 8
+    },
+    {
+      "id": "cone-2",
+      "asset": "cone",
+      "position": [
+        -1.5,
+        0,
+        -2.4
+      ],
+      "heading": 0,
+      "body": "dynamic",
+      "mass": 8
+    },
+    {
+      "id": "cone-3",
+      "asset": "cone",
+      "position": [
+        9.8,
+        0,
+        -3
+      ],
+      "heading": 0,
+      "body": "dynamic",
+      "mass": 8
+    },
+    {
+      "id": "box-1",
+      "asset": "box",
+      "position": [
+        10.2,
+        0,
+        0.3
+      ],
+      "heading": 15,
+      "body": "dynamic",
+      "mass": 16
+    },
+    {
+      "id": "box-2",
+      "asset": "box",
+      "position": [
+        11.2,
+        0,
+        0.5
+      ],
+      "heading": -10,
+      "body": "dynamic",
+      "mass": 16
+    },
+    {
+      "id": "house-west",
+      "asset": "house",
+      "position": [
+        -16,
+        0,
+        -6
+      ],
+      "heading": 90,
+      "body": "static"
+    },
+    {
+      "id": "house-north",
+      "asset": "houseWide",
+      "position": [
+        2,
+        0,
+        -18
+      ],
+      "heading": 0,
+      "body": "static"
+    },
+    {
+      "id": "house-east",
+      "asset": "house",
+      "position": [
+        18.5,
+        0,
+        -2.5
+      ],
+      "heading": -90,
+      "body": "static"
+    },
+    {
+      "id": "fence-north-0",
+      "asset": "fence",
+      "position": [
+        -9.1,
+        0,
+        -12
+      ],
+      "heading": 0,
+      "body": "static"
+    },
+    {
+      "id": "fence-north-1",
+      "asset": "fence",
+      "position": [
+        -6.25,
+        0,
+        -12
+      ],
+      "heading": 0,
+      "body": "static"
+    },
+    {
+      "id": "fence-north-2",
+      "asset": "fence",
+      "position": [
+        -3.3999999999999995,
+        0,
+        -12
+      ],
+      "heading": 0,
+      "body": "static"
+    },
+    {
+      "id": "fence-north-3",
+      "asset": "fence",
+      "position": [
+        -0.5499999999999989,
+        0,
+        -12
+      ],
+      "heading": 0,
+      "body": "static"
+    },
+    {
+      "id": "fence-north-4",
+      "asset": "fence",
+      "position": [
+        2.3000000000000007,
+        0,
+        -12
+      ],
+      "heading": 0,
+      "body": "static"
+    },
+    {
+      "id": "fence-north-5",
+      "asset": "fence",
+      "position": [
+        5.15,
+        0,
+        -12
+      ],
+      "heading": 0,
+      "body": "static"
+    },
+    {
+      "id": "fence-north-6",
+      "asset": "fence",
+      "position": [
+        8.000000000000002,
+        0,
+        -12
+      ],
+      "heading": 0,
+      "body": "static"
+    },
+    {
+      "id": "fence-north-7",
+      "asset": "fence",
+      "position": [
+        10.85,
+        0,
+        -12
+      ],
+      "heading": 0,
+      "body": "static"
+    },
+    {
+      "id": "fence-entry-0",
+      "asset": "fence",
+      "position": [
+        -9.8,
+        0,
+        5
+      ],
+      "heading": 90,
+      "body": "static"
+    },
+    {
+      "id": "fence-entry-1",
+      "asset": "fence",
+      "position": [
+        -9.8,
+        0,
+        7.85
+      ],
+      "heading": 90,
+      "body": "static"
+    },
+    {
+      "id": "fence-entry-2",
+      "asset": "fence",
+      "position": [
+        -9.8,
+        0,
+        10.7
+      ],
+      "heading": 90,
+      "body": "static"
+    },
+    {
+      "id": "fence-entry-3",
+      "asset": "fence",
+      "position": [
+        -9.8,
+        0,
+        13.55
+      ],
+      "heading": 90,
+      "body": "static"
+    },
+    {
+      "id": "fence-entry-4",
+      "asset": "fence",
+      "position": [
+        -9.8,
+        0,
+        16.4
+      ],
+      "heading": 90,
+      "body": "static"
+    },
+    {
+      "id": "tree-0",
+      "asset": "tree",
+      "position": [
+        -12.5,
+        0,
+        2
+      ],
+      "heading": 0
+    },
+    {
+      "id": "tree-1",
+      "asset": "treeSmall",
+      "position": [
+        -12.5,
+        0,
+        -12
+      ],
+      "heading": 37
+    },
+    {
+      "id": "tree-2",
+      "asset": "tree",
+      "position": [
+        12.8,
+        0,
+        -12
+      ],
+      "heading": 74
+    },
+    {
+      "id": "tree-3",
+      "asset": "treeSmall",
+      "position": [
+        14.8,
+        0,
+        4
+      ],
+      "heading": 111
+    },
+    {
+      "id": "tree-4",
+      "asset": "tree",
+      "position": [
+        -14,
+        0,
+        13
+      ],
+      "heading": 148
+    },
+    {
+      "id": "tree-5",
+      "asset": "treeSmall",
+      "position": [
+        5,
+        0,
+        -15
+      ],
+      "heading": 185
+    },
+    {
+      "id": "tree-6",
+      "asset": "tree",
+      "position": [
+        14.5,
+        0,
+        11
+      ],
+      "heading": 222
+    }
+  ],
+  "grid": {
+    "cellSize": 5,
+    "origin": [
+      -7.1,
+      7.5
+    ]
+  },
+  "roads": [
+    {
+      "id": "road-entry-0",
+      "asset": "road",
+      "cell": [
+        0,
+        0
+      ],
+      "rotation": 0
+    },
+    {
+      "id": "road-entry-1",
+      "asset": "road",
+      "cell": [
+        0,
+        1
+      ],
+      "rotation": 0
+    },
+    {
+      "id": "road-entry-2",
+      "asset": "road",
+      "cell": [
+        0,
+        2
+      ],
+      "rotation": 0
+    }
+  ],
+  "surfaces": [
+    {
+      "id": "ground",
+      "position": [
+        0,
+        -0.4,
+        0
+      ],
+      "size": [
+        90,
+        0.5,
+        90
+      ],
+      "heading": 0,
+      "color": "#9eaf8a",
+      "solid": true,
+      "support": true
+    },
+    {
+      "id": "court-floor",
+      "position": [
+        1,
+        -0.15,
+        -4
+      ],
+      "size": [
+        24,
+        0.3,
+        18
+      ],
+      "heading": 0,
+      "color": "#747d7c",
+      "solid": true,
+      "support": true
+    },
+    {
+      "id": "approach-floor",
+      "position": [
+        -7.1,
+        -0.15,
+        11
+      ],
+      "size": [
+        5.5,
+        0.3,
+        16
+      ],
+      "heading": 0,
+      "color": "#747d7c",
+      "solid": true,
+      "support": true
+    },
+    {
+      "id": "taxi-pad",
+      "position": [
+        -2.6,
+        -0.02,
+        7.5
+      ],
+      "size": [
+        3,
+        0.04,
+        5.3
+      ],
+      "heading": 0,
+      "color": "#c5c4b4",
+      "solid": false,
+      "support": false
+    },
+    {
+      "id": "east-curb",
+      "position": [
+        13.2,
+        0.22,
+        -4
+      ],
+      "size": [
+        0.45,
+        0.44,
+        18
+      ],
+      "heading": 0,
+      "color": "#e2decf",
+      "solid": true,
+      "support": false
+    },
+    {
+      "id": "west-curb",
+      "position": [
+        -11.2,
+        0.22,
+        -4
+      ],
+      "size": [
+        0.45,
+        0.44,
+        18
+      ],
+      "heading": 0,
+      "color": "#e2decf",
+      "solid": true,
+      "support": false
+    },
+    {
+      "id": "south-curb",
+      "position": [
+        4.1,
+        0.22,
+        5.15
+      ],
+      "size": [
+        18.5,
+        0.44,
+        0.45
+      ],
+      "heading": 0,
+      "color": "#e2decf",
+      "solid": true,
+      "support": false
+    },
+    {
+      "id": "entry-right-curb",
+      "position": [
+        -4.2,
+        0.22,
+        12
+      ],
+      "size": [
+        0.4,
+        0.44,
+        14
+      ],
+      "heading": 0,
+      "color": "#e2decf",
+      "solid": true,
+      "support": false
+    },
+    {
+      "id": "entry-end-curb",
+      "position": [
+        -7.1,
+        0.22,
+        19
+      ],
+      "size": [
+        6.3,
+        0.44,
+        0.4
+      ],
+      "heading": 0,
+      "color": "#e2decf",
+      "solid": true,
+      "support": false
+    },
+    {
+      "id": "turn-island",
+      "position": [
+        -6.1,
+        0.2,
+        -0.8
+      ],
+      "size": [
+        4.2,
+        0.4,
+        3
+      ],
+      "heading": 0,
+      "color": "#e2decf",
+      "solid": true,
+      "support": false
+    },
+    {
+      "id": "island-grass",
+      "position": [
+        -6.1,
+        0.42,
+        -0.8
+      ],
+      "size": [
+        3.7,
+        0.04,
+        2.5
+      ],
+      "heading": 0,
+      "color": "#9daf85",
+      "solid": false,
+      "support": false
+    }
+  ],
+  "parkingBays": [
+    {
+      "id": "parking-left",
+      "x": 0.3,
+      "z": -8.1,
+      "width": 3.4,
+      "length": 5.7,
+      "heading": 0,
+      "wheelStop": true
+    },
+    {
+      "id": "parking-right",
+      "x": 8.1,
+      "z": -8.1,
+      "width": 3.4,
+      "length": 5.7,
+      "heading": 0,
+      "wheelStop": true
+    }
+  ]
+}

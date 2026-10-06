@@ -3,9 +3,11 @@ import { Component, useCallback, useEffect, useState, useSyncExternalStore } fro
 import type { CSSProperties, ErrorInfo, ReactNode } from 'react';
 
 import { COURTYARD } from './game/level.ts';
+import { resolveMap } from './game/maps.ts';
+import { MapBuilder } from './editor/MapBuilder.tsx';
 import { GameScene } from './game/Scene.tsx';
 import { ParkingGame } from './game/session.ts';
-import type { GameSession } from './game/types.ts';
+import type { GameSession, MapDefinition } from './game/types.ts';
 
 function Arrow() {
     return (
@@ -87,7 +89,7 @@ function Controls() {
                     <rect x="4" y="2" width="12" height="19" rx="6" stroke="currentColor" strokeWidth="1.5" />
                     <path d="M10 2v7" stroke="currentColor" strokeWidth="1.5" />
                 </svg>
-                <span>Move mouse to steer</span>
+                <span>Steer near screen center</span>
             </div>
             <div>
                 <kbd className="wide-key">SPACE</kbd>
@@ -144,13 +146,13 @@ function Overlay({ state, game, retry }: { state: GameSession; game: ParkingGame
                     Big precision.
                 </h1>
                 <p className="intro-description">
-                    One car. One tight courtyard. Get into your spot before the clock runs out.
+                    One car. One parking challenge. Get into your spot before the clock runs out.
                 </p>
                 <div className="briefing">
                     <span className="briefing-number">01</span>
                     <div>
-                        <strong>The Courtyard</strong>
-                        <p>Tight turns & reverse parking</p>
+                        <strong>{game.level.name}</strong>
+                        <p>{game.level.id === 'courtyard-01' ? 'Tight turns & reverse parking' : 'Custom parking challenge'}</p>
                     </div>
                     <span className="difficulty-dots">
                         <i />
@@ -170,7 +172,7 @@ function Overlay({ state, game, retry }: { state: GameSession; game: ParkingGame
                     <Arrow />
                 </button>
                 <div className="intro-footnote">
-                    90 seconds <span>·</span> −50 points per impact
+                    90 seconds from first movement <span>·</span> −50 points per impact
                 </div>
             </div>
         );
@@ -232,7 +234,7 @@ function Overlay({ state, game, retry }: { state: GameSession; game: ParkingGame
     );
 }
 
-function Hud({ game, retry }: { game: ParkingGame; retry: () => void }) {
+function Hud({ game, retry, onBuilder, testing }: { game: ParkingGame; retry: () => void; onBuilder: () => void; testing: boolean }) {
     const state = useSyncExternalStore(game.subscribe, game.getSnapshot);
     const active = !['loading', 'error'].includes(state.phase);
     const playing = state.phase === 'playing';
@@ -248,10 +250,11 @@ function Hud({ game, retry }: { game: ParkingGame; retry: () => void }) {
                     </span>
                 </div>
                 <div className="level-label">
-                    <span className="eyebrow">LEVEL 01</span>
-                    <strong>The Courtyard</strong>
+                    <span className="eyebrow">{testing ? 'TEST DRIVE' : 'LEVEL 01'}</span>
+                    <strong>{game.level.name}</strong>
                 </div>
                 <div className="session-actions">
+                    <button className="builder-entry" onClick={onBuilder}>{testing ? 'Back to builder' : 'Map builder'}</button>
                     <span className="prototype-tag">DRIVING CLUB</span>
                     {active && (
                         <>
@@ -322,7 +325,7 @@ function Hud({ game, retry }: { game: ParkingGame; retry: () => void }) {
                                 </strong>
                             </div>
                         </div>
-                        {state.phase === 'ready' && <RouteMap />}
+                        {state.phase === 'ready' && game.level.id === 'courtyard-01' && <RouteMap />}
                     </div>
                     {state.phase !== 'ready' && (
                         <div className="mission-pill">
@@ -352,7 +355,7 @@ function Hud({ game, retry }: { game: ParkingGame; retry: () => void }) {
                         <div className="level-footer">
                             <span className="eyebrow">PRECISION OVER SPEED</span>
                             <span>
-                                01 <i /> COURTYARD PARKING
+                                01 <i /> {game.level.name.toUpperCase()}
                             </span>
                         </div>
                         {state.phase !== 'ready' && (
@@ -414,24 +417,47 @@ class SceneBoundary extends Component<{ game: ParkingGame; children: ReactNode }
 }
 
 export default function App() {
-    const [game] = useState(() => new ParkingGame(COURTYARD));
-    const retry = useCallback(() => window.location.reload(), []);
+    const [mode, setMode] = useState<'game' | 'builder' | 'test'>('game');
+    const [game, setGame] = useState(() => new ParkingGame(COURTYARD));
+    const [sceneRevision, setSceneRevision] = useState(0);
+    const retry = useCallback(() => {
+        setGame(new ParkingGame(game.level));
+        setSceneRevision((revision) => revision + 1);
+    }, [game]);
     useEffect(() => {
+        if (mode === 'builder') return;
         const timeout = window.setTimeout(() => {
             if (game.session.phase === 'loading')
                 game.fail('The level took too long to load. Check your connection and WebGL support, then retry.');
         }, 25000);
         return () => window.clearTimeout(timeout);
-    }, [game]);
-    return (
-        <main className="game-shell">
-            <SceneBoundary game={game}>
-                <Application usePhysics graphicsDeviceOptions={{ antialias: true, alpha: false }}>
-                    <GameScene game={game} />
-                </Application>
-            </SceneBoundary>
-            <Hud game={game} retry={retry} />
+    }, [game, mode, sceneRevision]);
+    const enterBuilder = () => {
+        game.pause();
+        setMode('builder');
+    };
+    const playCourtyard = () => {
+        setGame(new ParkingGame(COURTYARD));
+        setSceneRevision((revision) => revision + 1);
+        setMode('game');
+    };
+    const testDrive = (map: MapDefinition) => {
+        setGame(new ParkingGame(resolveMap(map)));
+        setSceneRevision((revision) => revision + 1);
+        setMode('test');
+    };
+    return <>
+        <main className="game-shell" hidden={mode === 'builder'}>
+            {/* Keep the graphics/physics owner alive while React replaces level entities.
+                Child materials must clean up before the graphics device is destroyed. */}
+            <Application usePhysics graphicsDeviceOptions={{ antialias: true, alpha: false }}>
+                <SceneBoundary key={sceneRevision} game={game}>
+                    {mode !== 'builder' && <GameScene game={game} />}
+                </SceneBoundary>
+            </Application>
+            {mode !== 'builder' && <Hud game={game} retry={retry} onBuilder={enterBuilder} testing={mode === 'test'} />}
             <div className="mobile-notice">Best played with a keyboard and mouse.</div>
         </main>
-    );
+        {mode !== 'game' && <MapBuilder hidden={mode === 'test'} onExit={playCourtyard} onTestDrive={testDrive} />}
+    </>;
 }

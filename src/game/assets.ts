@@ -97,6 +97,18 @@ export const ASSETS: Record<string, AssetDefinition> = {
         center: [0, 0.01, 0],
         scale: 5,
         yaw: 0
+    },
+    roadBend: {
+        pack: 'city-kit-road', file: 'road-bend.glb',
+        dimensions: [1, 0.02, 1], center: [0, 0.01, 0], scale: 5, yaw: 0
+    },
+    roadIntersection: {
+        pack: 'city-kit-road', file: 'road-intersection.glb',
+        dimensions: [1, 0.02, 1], center: [0, 0.01, 0], scale: 5, yaw: 0
+    },
+    roadCrossroad: {
+        pack: 'city-kit-road', file: 'road-crossroad.glb',
+        dimensions: [1, 0.02, 1], center: [0, 0.01, 0], scale: 5, yaw: 0
     }
 };
 

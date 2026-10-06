@@ -26,6 +26,26 @@ export type ParkingBay = {
     heading: number;
 };
 
+export type SurfaceDefinition = {
+    id: string;
+    position: Triple;
+    size: Triple;
+    heading: number;
+    color: string;
+    solid: boolean;
+    support: boolean;
+};
+
+export type ParkingMarking = ParkingBay & { id: string; wheelStop: boolean };
+
+export type RoadAsset = 'road' | 'roadBend' | 'roadIntersection' | 'roadCrossroad';
+export type RoadTile = {
+    id: string;
+    asset: RoadAsset;
+    cell: [number, number];
+    rotation: number;
+};
+
 export type LevelDefinition = {
     id: string;
     name: string;
@@ -34,12 +54,24 @@ export type LevelDefinition = {
     spawn: { position: Triple; heading: number };
     bay: ParkingBay;
     objects: SceneObject[];
+    surfaces?: SurfaceDefinition[];
+    parkingBays?: ParkingMarking[];
+};
+
+/** Portable authored data. Calibration and generated road supports stay in code. */
+export type MapDefinition = Omit<LevelDefinition, 'surfaces' | 'parkingBays'> & {
+    schemaVersion: 1;
+    grid: { cellSize: number; origin: [number, number] };
+    roads: RoadTile[];
+    surfaces: SurfaceDefinition[];
+    parkingBays: ParkingMarking[];
 };
 
 export type GamePhase = 'loading' | 'ready' | 'playing' | 'paused' | 'won' | 'lost' | 'error';
 
 export type GameSession = {
     phase: GamePhase;
+    hasMoved: boolean;
     remaining: number;
     impacts: number;
     score: number;

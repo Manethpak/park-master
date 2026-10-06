@@ -6,11 +6,10 @@ import type { Asset, Entity as PcEntity } from 'playcanvas';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { ASSETS, assetUrl, CAR_LENGTH, CAR_WIDTH } from './assets.ts';
-import { COURTYARD } from './level.ts';
 import { ParkingRuntime } from './runtime.ts';
 import type { ResetBody } from './runtime.ts';
 import type { ParkingGame } from './session.ts';
-import type { SceneObject, Triple } from './types.ts';
+import type { LevelDefinition, ParkingBay, SceneObject, Triple } from './types.ts';
 
 type LoadedAssets = Record<string, Asset>;
 
@@ -60,17 +59,19 @@ function SolidBox({
     position,
     size,
     color,
-    solid = false
+    solid = false,
+    heading = 0
 }: {
     name: string;
     position: Triple;
     size: Triple;
     color: string;
     solid?: boolean;
+    heading?: number;
 }) {
     const material = useMaterial({ diffuse: color, gloss: 0.15 });
     return (
-        <Entity name={name} position={position}>
+        <Entity name={name} position={position} rotation={[0, heading, 0]}>
             {solid && (
                 <>
                     <Collision type="box" halfExtents={[size[0] / 2, size[1] / 2, size[2] / 2]} />
@@ -128,76 +129,30 @@ function WorldObject({
     );
 }
 
-function CourtyardGeometry() {
-    const bay = COURTYARD.bay;
+function BayMarking({ bay, id, target = false, wheelStop = true }: { bay: ParkingBay; id: string; target?: boolean; wheelStop?: boolean }) {
     return (
-        <>
-            <SolidBox name="ground" position={[0, -0.4, 0]} size={[90, 0.5, 90]} color="#9eaf8a" solid />
-            <SolidBox name="court-floor" position={[1, -0.15, -4]} size={[24, 0.3, 18]} color="#747d7c" solid />
-            <SolidBox name="approach-floor" position={[-7.1, -0.15, 11]} size={[5.5, 0.3, 16]} color="#747d7c" solid />
-            <SolidBox name="taxi-pad" position={[-2.6, -0.02, 7.5]} size={[3, 0.04, 5.3]} color="#c5c4b4" />
-            <SolidBox name="east-curb" position={[13.2, 0.22, -4]} size={[0.45, 0.44, 18]} color="#e2decf" solid />
-            <SolidBox name="west-curb" position={[-11.2, 0.22, -4]} size={[0.45, 0.44, 18]} color="#e2decf" solid />
-            <SolidBox name="south-curb" position={[4.1, 0.22, 5.15]} size={[18.5, 0.44, 0.45]} color="#e2decf" solid />
-            <SolidBox
-                name="entry-right-curb"
-                position={[-4.2, 0.22, 12]}
-                size={[0.4, 0.44, 14]}
-                color="#e2decf"
-                solid
-            />
-            <SolidBox name="entry-end-curb" position={[-7.1, 0.22, 19]} size={[6.3, 0.44, 0.4]} color="#e2decf" solid />
-            <SolidBox name="turn-island" position={[-6.1, 0.2, -0.8]} size={[4.2, 0.4, 3]} color="#e2decf" solid />
-            <SolidBox name="island-grass" position={[-6.1, 0.42, -0.8]} size={[3.7, 0.04, 2.5]} color="#9daf85" />
-            <SolidBox
-                name="parking-highlight"
-                position={[bay.x, 0.009, bay.z]}
-                size={[bay.width, 0.016, bay.length]}
-                color="#90b48b"
-            />
-            {[0.3, bay.x, 8.1].map((x, i) => (
-                <Entity key={x} name={`parking-bay-${i}`}>
-                    {[-1, 1].map((side) => (
-                        <SolidBox
-                            key={side}
-                            name={`bay-line-${i}-${side}`}
-                            position={[x + (side * bay.width) / 2, 0.025, bay.z]}
-                            size={[0.075, 0.03, bay.length]}
-                            color={i === 1 ? '#e6f5b1' : '#e4e1d5'}
-                        />
-                    ))}
-                    <SolidBox
-                        name={`bay-back-${i}`}
-                        position={[x, 0.025, bay.z - bay.length / 2]}
-                        size={[bay.width, 0.03, 0.075]}
-                        color={i === 1 ? '#e6f5b1' : '#e4e1d5'}
-                    />
-                </Entity>
+        <Entity name={id} position={[bay.x, 0, bay.z]} rotation={[0, bay.heading, 0]}>
+            {target && <SolidBox name={`${id}-highlight`} position={[0, 0.009, 0]} size={[bay.width, 0.016, bay.length]} color="#90b48b" />}
+            {[-1, 1].map((side) => (
+                <SolidBox key={side} name={`${id}-line-${side}`} position={[side * bay.width / 2, 0.025, 0]} size={[0.075, 0.03, bay.length]} color={target ? '#e6f5b1' : '#e4e1d5'} />
             ))}
-            <SolidBox
-                name="bay-arrow-stem"
-                position={[bay.x, 0.04, bay.z + 0.2]}
-                size={[0.1, 0.025, 1.2]}
-                color="#eff7ce"
-            />
-            <Entity position={[bay.x - 0.2, 0.04, bay.z + 0.6]} rotation={[0, 45, 0]}>
-                <SolidBox name="bay-arrow-left" position={[0, 0, 0]} size={[0.09, 0.025, 0.65]} color="#eff7ce" />
-            </Entity>
-            <Entity position={[bay.x + 0.2, 0.04, bay.z + 0.6]} rotation={[0, -45, 0]}>
-                <SolidBox name="bay-arrow-right" position={[0, 0, 0]} size={[0.09, 0.025, 0.65]} color="#eff7ce" />
-            </Entity>
-            {[0.3, bay.x, 8.1].map((x) => (
-                <SolidBox
-                    key={x}
-                    name={`wheel-stop-${x}`}
-                    position={[x, 0.1, -10.65]}
-                    size={[1.8, 0.2, 0.22]}
-                    color="#cdc6af"
-                    solid
-                />
-            ))}
-        </>
+            <SolidBox name={`${id}-back`} position={[0, 0.025, -bay.length / 2]} size={[bay.width, 0.03, 0.075]} color={target ? '#e6f5b1' : '#e4e1d5'} />
+            {target && <>
+                <SolidBox name="bay-arrow-stem" position={[0, 0.04, 0.2]} size={[0.1, 0.025, 1.2]} color="#eff7ce" />
+                <SolidBox name="bay-arrow-left" position={[-0.2, 0.04, 0.6]} size={[0.09, 0.025, 0.65]} color="#eff7ce" heading={45} />
+                <SolidBox name="bay-arrow-right" position={[0.2, 0.04, 0.6]} size={[0.09, 0.025, 0.65]} color="#eff7ce" heading={-45} />
+            </>}
+            {wheelStop && <SolidBox name={`${id}-wheel-stop`} position={[0, 0.1, -bay.length / 2 + 0.3]} size={[1.8, 0.2, 0.22]} color="#cdc6af" solid />}
+        </Entity>
     );
+}
+
+function LevelGeometry({ level }: { level: LevelDefinition }) {
+    return <>
+        {level.surfaces?.map((surface) => <SolidBox key={surface.id} name={surface.id} position={surface.position} size={surface.size} color={surface.color} solid={surface.solid} heading={surface.heading} />)}
+        {level.parkingBays?.map((bay) => <BayMarking key={bay.id} bay={bay} id={bay.id} wheelStop={bay.wheelStop} />)}
+        <BayMarking bay={level.bay} id="parking-target" target />
+    </>;
 }
 
 function Simulation({
@@ -224,18 +179,19 @@ function LoadedWorld({ assets, game }: { assets: LoadedAssets; game: ParkingGame
     const player = useRef<PcEntity>(null);
     const camera = useRef<PcEntity>(null);
     const [bodies] = useState(() => new Map<string, ResetBody>());
+    const level = game.level;
     const carHeight = ASSETS.sedan.dimensions[1] * ASSETS.sedan.scale;
     const spawn = useMemo<Triple>(
-        () => [COURTYARD.spawn.position[0], carHeight / 2, COURTYARD.spawn.position[2]],
-        [carHeight]
+        () => [level.spawn.position[0], level.spawn.position[1] + carHeight / 2, level.spawn.position[2]],
+        [carHeight, level]
     );
     const registerPlayer = useCallback(
         (entity: PcEntity | null) => {
             player.current = entity;
-            if (entity) bodies.set('player', { entity, position: spawn, heading: COURTYARD.spawn.heading });
+            if (entity) bodies.set('player', { entity, position: spawn, heading: level.spawn.heading });
             else bodies.delete('player');
         },
-        [bodies, spawn]
+        [bodies, spawn, level]
     );
     return (
         <>
@@ -261,11 +217,11 @@ function LoadedWorld({ assets, game }: { assets: LoadedAssets; game: ParkingGame
                     normalOffsetBias={0.04}
                 />
             </Entity>
-            <CourtyardGeometry />
-            {COURTYARD.objects.map((object) => (
+            <LevelGeometry level={level} />
+            {level.objects.map((object) => (
                 <WorldObject key={object.id} object={object} assets={assets} bodies={bodies} />
             ))}
-            <Entity name="player" ref={registerPlayer} position={spawn} rotation={[0, COURTYARD.spawn.heading, 0]}>
+            <Entity name="player" ref={registerPlayer} position={spawn} rotation={[0, level.spawn.heading, 0]}>
                 <Collision type="box" halfExtents={[CAR_WIDTH / 2, carHeight / 2, CAR_LENGTH / 2]} />
                 <RigidBody
                     type="dynamic"
