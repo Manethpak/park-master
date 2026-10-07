@@ -7,6 +7,7 @@ import type { MapDefinition, PlayerVehicle, RoadAsset } from '../game/types.ts';
 import { deleteItem, duplicateItem, items, moveItem, placeItem, PROP_LABELS, setProperty, toolLabel } from './model.ts';
 import type { Item, Selection, Tool } from './model.ts';
 import { PREVIEWS } from './previews.ts';
+import { MapSettings } from './MapSettings.tsx';
 import './builder.css';
 
 type History = { past: MapDefinition[]; map: MapDefinition; future: MapDefinition[] };
@@ -49,7 +50,7 @@ function Symbol({ item }: { item: Item }) {
         <rect x={-w / 2} y={-l / 2} width={w} height={l} fill={kind === 'target' ? '#b0c775' : '#d4d4c466'} stroke={kind === 'target' ? '#425b38' : '#f5eed5'} strokeWidth="0.1" />
         <text x="0" y="0.1" fontSize="1.3" textAnchor="middle" fill="#344b35" dominantBaseline="middle">P</text>
         {kind === 'target' && <path d="M0,0.8 V2 M-0.4,1.5 L0,2 L0.4,1.5" fill="none" stroke="#344b35" strokeWidth="0.13" />}
-        {(item.wheelStop || kind === 'target') && <rect x="-0.9" y={-l / 2 + 0.2} width="1.8" height="0.22" fill="#8c927b" />}
+        {item.wheelStop && <rect x="-0.9" y={-l / 2 + 0.2} width="1.8" height="0.22" fill="#8c927b" />}
     </>;
     if (kind === 'surface') return <rect x={-w / 2} y={-l / 2} width={w} height={l} fill={item.color} stroke={item.solid && !item.support ? '#9d9989' : '#7e8e7533'} strokeWidth="0.08" />;
     if (asset === 'tree' || asset === 'treeSmall') return <>
@@ -74,6 +75,8 @@ export function MapBuilder({ hidden, onExit, onTestDrive }: { hidden: boolean; o
     const [initial] = useState(initialDraft);
     const [history, setHistory] = useState<History>(() => ({ past: [], map: initial.map, future: [] }));
     const map = history.map;
+    const [editingName, setEditingName] = useState<string | null>(null);
+    const [sidebarTab, setSidebarTab] = useState<'assets' | 'settings'>('assets');
     const [selected, setSelected] = useState<Selection | null>(null);
     const [tool, setTool] = useState<Tool>('select');
     const [rotation, setRotation] = useState(0);
@@ -318,7 +321,7 @@ export function MapBuilder({ hidden, onExit, onTestDrive }: { hidden: boolean; o
         setMessage('Exported the level as JSON.');
     }
     function blank() {
-        const next: MapDefinition = { schemaVersion: 1, id: 'custom-level', name: 'Untitled lot', timeLimit: 90, impactPenalty: 50, grid: { cellSize: 5, origin: [0, 0] }, roads: [], objects: [], parkingBays: [], spawn: { position: [-5, 0, 5], heading: 0 }, bay: { x: 5, z: -5, width: 3.4, length: 5.7, heading: 0 }, surfaces: [{ id: 'ground', position: [0, -0.4, 0], size: [90, 0.5, 90], heading: 0, color: '#9eaf8a', solid: true, support: true }, { id: 'court-floor', position: [0, -0.15, 0], size: [30, 0.3, 30], heading: 0, color: '#747d7c', solid: true, support: true }] };
+        const next: MapDefinition = { schemaVersion: 1, id: 'custom-level', name: 'Untitled lot', timeLimit: 90, impactPenalty: 25, smallImpactPenalty: 10, grid: { cellSize: 5, origin: [0, 0] }, roads: [], objects: [], parkingBays: [], spawn: { position: [-5, 0, 5], heading: 0 }, bay: { x: 5, z: -5, width: 3.4, length: 5.7, heading: 0 }, surfaces: [{ id: 'ground', position: [0, -0.4, 0], size: [90, 0.5, 90], heading: 0, color: '#9eaf8a', solid: true, support: true }, { id: 'court-floor', position: [0, -0.15, 0], size: [30, 0.3, 30], heading: 0, color: '#747d7c', solid: true, support: true }] };
         if (commit(next, 'Created a new map. Undo restores the previous draft.')) { resetEditor(); setCenter([0, 0]); setViewWidth(42); }
     }
     const numeric = (label: string, key: string, value: number, step = snap || 0.25) => <label className="builder-field" key={key}><span>{label}</span><input type="number" aria-label={label} value={Math.round(value * 10000) / 10000} step={step} onChange={(event) => { if (event.target.value !== '' && Number.isFinite(event.target.valueAsNumber)) property(key, event.target.valueAsNumber); }} /></label>;
@@ -343,10 +346,39 @@ export function MapBuilder({ hidden, onExit, onTestDrive }: { hidden: boolean; o
     return <section className="map-builder" aria-label="Map builder" hidden={hidden}>
         <header className="builder-header">
             <div className="builder-brand"><span className="brand-icon">P</span><div><strong>PARK MASTER</strong><span>LEVEL WORKSHOP</span></div></div>
-            <label className="builder-name"><span className="eyebrow">DRAFT NAME</span><input aria-label="Level name" value={map.name} maxLength={100} onChange={(e) => { if (e.target.value.trim()) edit((draft) => { draft.name = e.target.value; }); }} /></label>
+            <label className="builder-name"><span className="eyebrow">DRAFT NAME</span><input
+                aria-label="Level name"
+                value={editingName ?? map.name}
+                maxLength={100}
+                onChange={(e) => setEditingName(e.target.value)}
+                onBlur={(e) => {
+                    const name = e.target.value.trim();
+                    if (name && name !== map.name) edit((draft) => { draft.name = name; });
+                    setEditingName(null);
+                }}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); }
+                }}
+            /></label>
             <div className="builder-header-actions"><button onClick={onExit}>Main menu</button><button className="builder-test" disabled={validationErrors.length > 0} onClick={() => { try { onTestDrive(parseMap(map)); } catch (cause) { setError(String(cause)); } }}>Test drive <span aria-hidden="true">↗</span></button></div>
         </header>
-        <aside className="builder-palette" aria-label="Placement tools">
+        <aside className="builder-palette" aria-label="Builder sidebar">
+            <div className="builder-sidebar-tabs" role="tablist" aria-label="Builder panels" onKeyDown={(event) => {
+                if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+                event.preventDefault();
+                event.stopPropagation();
+                const next = event.key === 'Home' ? 'assets' : event.key === 'End' ? 'settings' : sidebarTab === 'assets' ? 'settings' : 'assets';
+                setSidebarTab(next);
+                if (next === 'settings') { setTool('select'); setCopySource(null); }
+                event.currentTarget.querySelector<HTMLButtonElement>(`#builder-${next}-tab`)?.focus();
+            }}>
+                {(['assets', 'settings'] as const).map((tab) => <button key={tab}
+                    id={`builder-${tab}-tab`} role="tab" aria-selected={sidebarTab === tab}
+                    aria-controls={`builder-${tab}-panel`} tabIndex={sidebarTab === tab ? 0 : -1}
+                    onClick={() => { setSidebarTab(tab); if (tab === 'settings') { setTool('select'); setCopySource(null); } }}
+                >{tab === 'assets' ? 'Assets' : 'Map settings'}</button>)}
+            </div>
+            <div id="builder-assets-panel" className="builder-sidebar-panel" role="tabpanel" aria-labelledby="builder-assets-tab" hidden={sidebarTab !== 'assets'}>
             <p className="eyebrow">01 / PLACE</p>
             {palette('select')}
             <input aria-label="Search assets" type="search" placeholder="Search the kit…" value={search} onChange={(e) => setSearch(e.target.value)} />
@@ -355,6 +387,21 @@ export function MapBuilder({ hidden, onExit, onTestDrive }: { hidden: boolean; o
                 return tools.length ? <details className="asset-category" key={category.label} open><summary>{category.label}<span>{tools.length}</span></summary><div className="asset-grid">{tools.map(palette)}</div></details> : null;
             })}
             {!CATEGORIES.some((c) => c.tools.some((t) => toolLabel(t).toLowerCase().includes(search.toLowerCase()))) && <p>No matching assets. Try another name.</p>}
+            <details className="scene-list"><summary>Scene list · {allItems.length}</summary>{allItems.map((item) => <div key={keyOf(item)}><button aria-label={`Focus ${item.id}`} onClick={() => focusItem(item)}>{item.id}</button><button aria-label={`Lock ${item.id}`} aria-pressed={locked.has(keyOf(item))} onClick={() => toggle(setLocked, locked, keyOf(item))}>L</button><button aria-label={`Hide ${item.id}`} aria-pressed={invisible.has(keyOf(item))} onClick={() => toggle(setInvisible, invisible, keyOf(item))}>H</button></div>)}<p>L locks · H hides in editor only</p></details>
+            </div>
+            <div id="builder-settings-panel" className="builder-sidebar-panel" role="tabpanel" aria-labelledby="builder-settings-tab" hidden={sidebarTab !== 'settings'}>
+                <MapSettings map={map} edit={edit} />
+                <div className="builder-map-settings"><h2>Player vehicle</h2><div className="vehicle-picker">{(['sedan', 'suv', 'taxi'] as PlayerVehicle[]).map((vehicle) => <button key={vehicle} aria-label={`Drive ${vehicle}`} aria-pressed={(map.playerVehicle ?? 'sedan') === vehicle} className={(map.playerVehicle ?? 'sedan') === vehicle ? 'is-active' : ''} onClick={() => edit((draft) => { draft.playerVehicle = vehicle; }, `Player vehicle: ${vehicle}.`)}><img src={PREVIEWS[vehicle]} alt="" /><span>{vehicle === 'suv' ? 'SUV' : vehicle === 'taxi' ? 'Taxi' : 'Sedan'}</span></button>)}</div><p>Vehicle dimensions affect collisions and parking. A smaller target bay must be resized before changing cars.</p>
+                    <h2>Playable zone</h2><button onClick={() => {
+                        if (!map.playableZone && !edit((draft) => { draft.playableZone = { x: 0, z: 0, width: 30, length: 30 }; }, 'Added a solid playable boundary.')) return;
+                        setSelected({ kind: 'zone', id: 'playable-zone' }); setTool('select');
+                    }}>{map.playableZone ? 'Edit playable zone' : 'Add playable zone'}</button><p>Drag its corners to resize. Visible barriers keep the car inside during Test drive.</p>
+                </div>
+                <div className="builder-warnings" role="status"><strong>Level validation</strong>{!validationErrors.length && !warnings.length && <p>No issues found. Test drive to check your route.</p>}{[...validationErrors, ...warnings].map((warning) => {
+                    const item = allItems.find((i) => warning.startsWith(i.id + ':') || warning.startsWith(i.id + ' and') || i.kind === 'spawn' && warning.startsWith('Player spawn') || i.kind === 'target' && warning.startsWith('Target bay'));
+                    return <p key={warning}>{item ? <button onClick={() => focusItem(item)}>{warning}</button> : warning}</p>;
+                })}{validationErrors.length > 0 && <p>Resolve boundary errors to enable Test drive.</p>}</div>
+            </div>
             <div className="builder-files"><button onClick={blank}>New map</button><button onClick={() => { if (commit(structuredClone(COURTYARD_MAP), 'Restored the supplied courtyard. Undo restores your draft.')) resetEditor(); }}>Load courtyard</button><button onClick={() => fileInput.current?.click()}>Import JSON</button><button onClick={exportFile}>Export JSON</button></div>
             <input ref={fileInput} type="file" accept=".json,application/json" aria-label="Import level file" className="builder-file-input" onChange={(e) => { const file = e.target.files?.[0]; if (file) void importFile(file); e.target.value = ''; }} />
         </aside>
@@ -408,7 +455,7 @@ export function MapBuilder({ hidden, onExit, onTestDrive }: { hidden: boolean; o
         </div>
         <aside className="builder-inspector" aria-label="Selection inspector">
             <p className="eyebrow">02 / INSPECT</p>
-            <label className="builder-field"><span>Scene item</span><select aria-label="Scene item" value={current ? `${current.kind}:${current.id}` : ''} onChange={(e) => { const i = allItems.find((i) => `${i.kind}:${i.id}` === e.target.value); setSelected(i ? { kind: i.kind, id: i.id } : null); setTool('select'); }}><option value="">Choose an item…</option>{allItems.map((i) => <option key={`${i.kind}:${i.id}`} value={`${i.kind}:${i.id}`}>{i.id}</option>)}</select></label>
+            <label className="builder-field"><span>Scene item</span><select aria-label="Scene item" value={current ? `${current.kind}:${current.id}` : ''} onChange={(e) => { const i = allItems.find((i) => `${i.kind}:${i.id}` === e.target.value); setSelected(i ? { kind: i.kind, id: i.id } : null); setTool('select'); }}><option value="">No selection</option>{allItems.map((i) => <option key={`${i.kind}:${i.id}`} value={`${i.kind}:${i.id}`}>{i.id}</option>)}</select></label>
             {current ? <>
                 <h2>{current.asset ? PROP_LABELS[current.asset] || ROAD_ASSETS[current.asset as RoadAsset]?.label : current.kind === 'target' ? 'Target bay' : current.kind === 'spawn' ? 'Player spawn' : current.kind === 'parking' ? 'Parking bay' : current.kind === 'zone' ? 'Playable zone' : 'Surface'}</h2>
                 <code className="inspector-id">{current.id}</code>
@@ -427,19 +474,7 @@ export function MapBuilder({ hidden, onExit, onTestDrive }: { hidden: boolean; o
                 {current.kind === 'object' && <p className="asset-size-note">Default calibrated size · models are not stretched.</p>}
                 <div className="inspector-actions"><button disabled={['spawn', 'target', 'zone'].includes(current.kind)} onClick={duplicate}>Duplicate</button><button disabled={['spawn', 'target'].includes(current.kind)} onClick={remove}>Delete</button></div>
                 </fieldset>
-            </> : <div className="inspector-empty"><span>↖</span><h2>A place for everything.</h2><p>Select an item on the map to adjust its position, rotation, or dimensions.</p></div>}
-            <div className="builder-map-settings"><h2>Map settings</h2><label className="builder-field"><span>Level ID</span><input aria-label="Level ID" value={map.id} maxLength={100} onChange={(e) => { if (e.target.value.trim()) edit((draft) => { draft.id = e.target.value; }); }} /></label><div className="builder-field-grid">{[0, 1].map((axis) => <label className="builder-field" key={axis}><span>Grid origin {axis === 0 ? 'X' : 'Z'}</span><input aria-label={`Grid origin ${axis === 0 ? 'X' : 'Z'}`} type="number" value={map.grid.origin[axis]} step="0.25" onChange={(e) => { if (e.target.value !== '') edit((draft) => { draft.grid.origin[axis] = e.target.valueAsNumber; }); }} /></label>)}</div><p>Road centres follow this origin. Roads use 5 m tiles; each level has one spawn and one target.</p></div>
-            <div className="builder-map-settings"><h2>Player vehicle</h2><div className="vehicle-picker">{(['sedan', 'suv', 'taxi'] as PlayerVehicle[]).map((vehicle) => <button key={vehicle} aria-label={`Drive ${vehicle}`} aria-pressed={(map.playerVehicle ?? 'sedan') === vehicle} className={(map.playerVehicle ?? 'sedan') === vehicle ? 'is-active' : ''} onClick={() => edit((draft) => { draft.playerVehicle = vehicle; }, `Player vehicle: ${vehicle}.`)}><img src={PREVIEWS[vehicle]} alt="" /><span>{vehicle === 'suv' ? 'SUV' : vehicle === 'taxi' ? 'Taxi' : 'Sedan'}</span></button>)}</div><p>Vehicle dimensions affect collisions and parking. A smaller target bay must be resized before changing cars.</p>
-                <h2>Playable zone</h2><button onClick={() => {
-                    if (!map.playableZone && !edit((draft) => { draft.playableZone = { x: 0, z: 0, width: 30, length: 30 }; }, 'Added a solid playable boundary.')) return;
-                    setSelected({ kind: 'zone', id: 'playable-zone' }); setTool('select');
-                }}>{map.playableZone ? 'Edit playable zone' : 'Add playable zone'}</button><p>Drag its corners to resize. Visible barriers keep the car inside during Test drive.</p>
-            </div>
-            <details className="scene-list"><summary>Scene list · {allItems.length}</summary>{allItems.map((item) => <div key={keyOf(item)}><button aria-label={`Focus ${item.id}`} onClick={() => focusItem(item)}>{item.id}</button><button aria-label={`Lock ${item.id}`} aria-pressed={locked.has(keyOf(item))} onClick={() => toggle(setLocked, locked, keyOf(item))}>L</button><button aria-label={`Hide ${item.id}`} aria-pressed={invisible.has(keyOf(item))} onClick={() => toggle(setInvisible, invisible, keyOf(item))}>H</button></div>)}<p>L locks · H hides in editor only</p></details>
-            <div className="builder-warnings" role="status"><strong>Level validation</strong>{!validationErrors.length && !warnings.length && <p>No issues found. Test drive to check your route.</p>}{[...validationErrors, ...warnings].map((warning) => {
-                const item = allItems.find((i) => warning.startsWith(i.id + ':') || warning.startsWith(i.id + ' and') || i.kind === 'spawn' && warning.startsWith('Player spawn') || i.kind === 'target' && warning.startsWith('Target bay'));
-                return <p key={warning}>{item ? <button onClick={() => focusItem(item)}>{warning}</button> : warning}</p>;
-            })}{validationErrors.length > 0 && <p>Resolve boundary errors to enable Test drive.</p>}</div>
+            </> : <div className="inspector-empty"><span aria-hidden="true">↖</span><h2>No item selected.</h2><p>Select an element on the canvas or in the scene list to inspect its properties.</p></div>}
         </aside>
         <footer className="builder-status"><span className={error ? 'builder-error' : ''} role={error ? 'alert' : 'status'}>{error || message}</span><span>{map.roads.length} roads · {map.objects.length} props <i /> {saved}</span></footer>
     </section>;

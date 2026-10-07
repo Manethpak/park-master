@@ -1,7 +1,8 @@
-import { advanceParkingHold, calculateScore, checkParking, ImpactTracker, nextPhase } from './rules.ts';
+import { advanceParkingHold, calculateScore, checkParking, IMPACT_PENALTIES, ImpactTracker, nextPhase } from './rules.ts';
 import type { CarPose, GameSession, LevelDefinition } from './types.ts';
 
 export class ParkingGame {
+    readonly touchControls = new Map<number, 'forward' | 'reverse' | 'stop' | 'left' | 'right'>();
     private listeners = new Set<() => void>();
     readonly contacts = new ImpactTracker();
     readonly level: LevelDefinition;
@@ -22,6 +23,9 @@ export class ParkingGame {
             hasMoved: false,
             remaining: this.level.timeLimit,
             impacts: 0,
+            impactPoints: 0,
+            lastImpactPenalty: 0,
+            lastImpactKind: null,
             score: 1000,
             speed: 0,
             steering: 0,
@@ -60,6 +64,7 @@ export class ParkingGame {
 
     start = () => {
         if (nextPhase(this.session.phase, 'start') !== 'playing') return;
+        this.touchControls.clear();
         this.session = this.initialSession('playing');
         this.contacts.reset();
         this.resetRevision++;
@@ -78,15 +83,19 @@ export class ParkingGame {
         this.publish();
     };
 
-    impact(id: string) {
+    impact(id: string, kind: keyof typeof IMPACT_PENALTIES = 'hard') {
         if (this.session.phase !== 'playing' || !this.contacts.enter(id)) return;
         this.session.impacts++;
+        this.session.lastImpactKind = kind;
+        this.session.lastImpactPenalty = kind === 'small'
+            ? this.level.smallImpactPenalty ?? IMPACT_PENALTIES.small
+            : this.level.impactPenalty;
+        this.session.impactPoints += this.session.lastImpactPenalty;
         this.session.impactFlash = 0.65;
         this.session.score = calculateScore(
             this.session.remaining,
             this.level.timeLimit,
-            this.session.impacts,
-            this.level.impactPenalty
+            this.session.impactPoints
         );
         this.publish();
     }
@@ -114,8 +123,7 @@ export class ParkingGame {
         this.session.score = calculateScore(
             this.session.remaining,
             this.level.timeLimit,
-            this.session.impacts,
-            this.level.impactPenalty
+            this.session.impactPoints
         );
         if (this.session.remaining <= 0) {
             this.session.phase = nextPhase(this.session.phase, 'timeout');

@@ -26,7 +26,7 @@ export function roadPorts(road: RoadTile) {
 /** One conversion path for imported files, the editor, and gameplay. */
 export function resolveMap(map: MapDefinition): LevelDefinition {
     return {
-        id: map.id, name: map.name, timeLimit: map.timeLimit, impactPenalty: map.impactPenalty,
+        id: map.id, name: map.name, difficulty: map.difficulty, challenge: map.challenge, campaignOrder: map.campaignOrder, timeLimit: map.timeLimit, impactPenalty: map.impactPenalty, smallImpactPenalty: map.smallImpactPenalty,
         spawn: structuredClone(map.spawn), bay: structuredClone(map.bay),
         playerVehicle: map.playerVehicle, playableZone: map.playableZone && { ...map.playableZone },
         objects: [
@@ -77,7 +77,14 @@ export function parseMap(value: unknown): MapDefinition {
     };
     const m = record(value, 'Map');
     if (m.schemaVersion !== 1) fail('Unsupported schemaVersion. Expected 1.');
-    if (m.timeLimit !== 90 || m.impactPenalty !== 50) fail('Levels must use a 90-second attempt and a 50-point impact penalty.');
+    if (m.difficulty !== undefined && !['easy', 'medium', 'hard'].includes(m.difficulty as string)) fail('Difficulty must be easy, medium, or hard.');
+    const integer = (value: unknown, path: string, min: number, max: number) => {
+        const result = number(value, path, min, max);
+        if (!Number.isInteger(result)) fail(`${path} must be a whole number.`);
+        return result;
+    };
+    // Older v1 files fixed the penalty at 50; retain the newer forgiving defaults.
+    const hardPenalty = m.smallImpactPenalty === undefined && m.impactPenalty === 50 ? 25 : m.impactPenalty;
     const grid = record(m.grid, 'grid');
     if (grid.cellSize !== ROAD_SIZE) fail('Road cellSize must be 5 metres to match the calibrated tiles.');
     const spawn = record(m.spawn, 'spawn');
@@ -87,7 +94,10 @@ export function parseMap(value: unknown): MapDefinition {
     if (target.width < vehicle.width || target.length < vehicle.length) fail('The target bay must fit the entire player car.');
     const occupied = new Set<string>();
     const map: MapDefinition = {
-        schemaVersion: 1, id: string(m.id, 'id'), name: string(m.name, 'name'), timeLimit: 90, impactPenalty: 50,
+        schemaVersion: 1, id: string(m.id, 'id'), name: string(m.name, 'name'),
+        timeLimit: integer(m.timeLimit, 'timeLimit', 1, 3600),
+        impactPenalty: integer(hardPenalty, 'impactPenalty', 0, 1000),
+        smallImpactPenalty: integer(m.smallImpactPenalty === undefined ? 10 : m.smallImpactPenalty, 'smallImpactPenalty', 0, 1000),
         grid: { cellSize: ROAD_SIZE, origin: tuple(grid.origin, 'grid.origin', 2) as [number, number] },
         spawn: { position: tuple(spawn.position, 'spawn.position', 3) as [number, number, number], heading: heading(spawn.heading, 'spawn.heading') },
         bay: target,
@@ -124,6 +134,9 @@ export function parseMap(value: unknown): MapDefinition {
         })
     };
     if (m.playerVehicle !== undefined) map.playerVehicle = m.playerVehicle as MapDefinition['playerVehicle'];
+    if (m.difficulty !== undefined) map.difficulty = m.difficulty as MapDefinition['difficulty'];
+    if (m.challenge !== undefined) map.challenge = string(m.challenge, 'challenge');
+    if (m.campaignOrder !== undefined) map.campaignOrder = integer(m.campaignOrder, 'campaignOrder', 0, 10000);
     if (m.playableZone !== undefined) {
         const zone = record(m.playableZone, 'playableZone');
         map.playableZone = { x: number(zone.x, 'playableZone.x'), z: number(zone.z, 'playableZone.z'), width: number(zone.width, 'playableZone.width', 5, 500), length: number(zone.length, 'playableZone.length', 5, 500) };

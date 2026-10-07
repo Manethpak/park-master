@@ -27,5 +27,6 @@ export function stepSteering(angle: number, input: number, dt: number) {
 }
 
 export function steeringYawRate(speed: number, steering: number, wheelbase: number) {
-    return (speed / wheelbase) * Math.tan((steering * Math.PI) / 180);
+    // Models face +Z: a clockwise (right) steering input needs negative Engine yaw.
+    return -(speed / wheelbase) * Math.tan((steering * Math.PI) / 180);
 }

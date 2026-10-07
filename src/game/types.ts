@@ -1,5 +1,6 @@
 export type Triple = [number, number, number];
 export type PlayerVehicle = 'sedan' | 'suv' | 'taxi';
+export type Difficulty = 'easy' | 'medium' | 'hard';
 export type PlayableZone = { x: number; z: number; width: number; length: number };
 
 export type AssetDefinition = {
@@ -49,12 +50,17 @@ export type RoadTile = {
 };
 
 export type LevelDefinition = {
+    difficulty?: Difficulty;
+    challenge?: string;
+    campaignOrder?: number;
     playerVehicle?: PlayerVehicle;
     playableZone?: PlayableZone;
     id: string;
     name: string;
     timeLimit: number;
+    /** Points deducted for a hard-object impact. */
     impactPenalty: number;
+    smallImpactPenalty?: number;
     spawn: { position: Triple; heading: number };
     bay: ParkingBay;
     objects: SceneObject[];
@@ -78,6 +84,9 @@ export type GameSession = {
     hasMoved: boolean;
     remaining: number;
     impacts: number;
+    impactPoints: number;
+    lastImpactPenalty: number;
+    lastImpactKind: 'small' | 'hard' | null;
     score: number;
     speed: number;
     steering: number;

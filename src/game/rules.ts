@@ -1,9 +1,12 @@
 import type { CarPose, GamePhase, ParkingBay } from './types.ts';
 
-export function calculateScore(remaining: number, timeLimit: number, impacts: number, penalty: number) {
+export const IMPACT_PENALTIES = { small: 10, hard: 25 } as const;
+
+/** Pass accumulated points, or a count with an explicit per-impact penalty. */
+export function calculateScore(remaining: number, timeLimit: number, impactPoints: number, penalty = 1) {
     return Math.max(
         0,
-        Math.round((1000 * Math.max(0, Math.min(remaining, timeLimit))) / timeLimit) - impacts * penalty
+        Math.round((1000 * Math.max(0, Math.min(remaining, timeLimit))) / timeLimit) - impactPoints * penalty
     );
 }
 

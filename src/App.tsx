@@ -8,8 +8,9 @@ import { MapBuilder } from './editor/MapBuilder.tsx';
 import { GameScene } from './game/Scene.tsx';
 import { ParkingGame } from './game/session.ts';
 import type { GameSession, MapDefinition } from './game/types.ts';
-import { CAMPAIGN, levelRecord, readProgress, recordCompletion, saveProgress, scoreStars } from './game/campaign.ts';
+import { CAMPAIGN, DIFFICULTY_LABELS, canPlayLevel, difficultyStatus, levelRecord, readProgress, recommendedLevel, recordCompletion, saveProgress, scoreStars } from './game/campaign.ts';
 import { GameMenu, Stars } from './ui/GameMenu.tsx';
+import { enterLandscape, MobileControls, useMobileLayout } from './ui/MobileControls.tsx';
 
 function Arrow() {
     return (
@@ -79,6 +80,7 @@ function RouteMap() {
 function Controls() {
     return (
         <div className="controls">
+            <div className="touch-instructions">Hold the pedals to drive or stop. Hold ← / → to steer.</div>
             <div>
                 <span className="key-pair">
                     <kbd>W</kbd>
@@ -101,7 +103,7 @@ function Controls() {
     );
 }
 
-function Overlay({ state, game, retry, onBuilder, onCampaign, bestScore, onNext }: { state: GameSession; game: ParkingGame; retry: () => void; onBuilder?: () => void; onCampaign?: () => void; bestScore?: number; onNext?: () => void }) {
+function Overlay({ state, game, retry, onBuilder, onCampaign, bestScore, onNext, progressionNotice }: { state: GameSession; game: ParkingGame; retry: () => void; onBuilder?: () => void; onCampaign?: () => void; bestScore?: number; onNext?: () => void; progressionNotice?: string }) {
     const leave = onBuilder ?? onCampaign;
     const returnLabel = onBuilder ? 'Back to builder' : 'Level select';
     const focusCanvas = () => document.querySelector<HTMLCanvasElement>('canvas')?.focus();
@@ -157,12 +159,12 @@ function Overlay({ state, game, retry, onBuilder, onCampaign, bestScore, onNext 
                     <span className="briefing-number">01</span>
                     <div>
                         <strong>{game.level.name}</strong>
-                        <p>{game.level.id === 'courtyard-01' ? 'Tight turns & reverse parking' : 'Custom parking challenge'}</p>
+                        <p>{DIFFICULTY_LABELS[game.level.difficulty ?? 'easy']} · {game.level.challenge ?? 'Parking precision'}</p>
                     </div>
-                    <span className="difficulty-dots">
+                    <span className="difficulty-dots" aria-label={`${DIFFICULTY_LABELS[game.level.difficulty ?? 'easy']} difficulty`}>
                         <i />
-                        <i />
-                        <i className="empty" />
+                        <i className={(game.level.difficulty ?? 'easy') === 'easy' ? 'empty' : ''} />
+                        <i className={game.level.difficulty === 'hard' ? '' : 'empty'} />
                     </span>
                 </div>
                 <div className="objective">
@@ -177,7 +179,7 @@ function Overlay({ state, game, retry, onBuilder, onCampaign, bestScore, onNext 
                     <Arrow />
                 </button>
                 <div className="intro-footnote">
-                    90 seconds from first movement <span>·</span> −50 points per impact
+                    {game.level.timeLimit} seconds from first movement <span>·</span> −{game.level.smallImpactPenalty ?? 10} small bumps / −{game.level.impactPenalty} hard hits
                 </div>
             </div>
         );
@@ -230,6 +232,7 @@ function Overlay({ state, game, retry, onBuilder, onCampaign, bestScore, onNext 
                     </div>
                 </div>
                 {!onBuilder && bestScore !== undefined && <p className="campaign-best">PERSONAL BEST · {bestScore} PTS</p>}
+                {won && !onBuilder && !onNext && progressionNotice && <p className="campaign-best">{progressionNotice}</p>}
                 {won && onNext && <button className="primary-button" onClick={onNext}>Next level<Arrow /></button>}
                 <button className="primary-button" onClick={start}>
                     {won ? 'Park it again' : 'Try again'}
@@ -244,13 +247,22 @@ function Overlay({ state, game, retry, onBuilder, onCampaign, bestScore, onNext 
     );
 }
 
-function Hud({ game, retry, onBuilder, onCampaign, testing, levelNumber, bestScore, onNext }: { game: ParkingGame; retry: () => void; onBuilder: () => void; onCampaign: () => void; testing: boolean; levelNumber: number; bestScore?: number; onNext?: () => void }) {
+function Hud({ game, retry, onBuilder, onCampaign, testing, levelNumber, bestScore, onNext, progressionNotice }: { game: ParkingGame; retry: () => void; onBuilder: () => void; onCampaign: () => void; testing: boolean; levelNumber: number; bestScore?: number; onNext?: () => void; progressionNotice?: string }) {
     const state = useSyncExternalStore(game.subscribe, game.getSnapshot);
+    const { mobile, portrait } = useMobileLayout();
+    const rotate = mobile && portrait;
+    useEffect(() => {
+        game.touchControls.clear();
+        if (!rotate) return;
+        game.pause();
+        return game.subscribe(() => game.pause());
+    }, [game, mobile, rotate]);
     const active = !['loading', 'error'].includes(state.phase);
     const playing = state.phase === 'playing';
     const timer = Math.ceil(state.remaining);
     return (
-        <div className={`hud ${playing ? 'is-driving' : ''}`}>
+        <>
+        <div className={`hud ${playing ? 'is-driving' : ''} ${mobile ? 'mobile-hud' : ''}`} inert={rotate} aria-hidden={rotate || undefined}>
             <header className="top-bar">
                 <div className="wordmark" aria-label="Park Master">
                     <span className="brand-icon">P</span>
@@ -264,6 +276,7 @@ function Hud({ game, retry, onBuilder, onCampaign, testing, levelNumber, bestSco
                     <strong>{game.level.name}</strong>
                 </div>
                 <div className="session-actions">
+                    {mobile && <button className="builder-entry" onClick={() => void enterLandscape()}>Fullscreen</button>}
                     {!['paused', 'won', 'lost', 'error'].includes(state.phase) && <button className="builder-entry" onClick={testing ? onBuilder : onCampaign}>{testing ? 'Back to builder' : 'Level select'}</button>}
                     <span className="prototype-tag">DRIVING CLUB</span>
                     {active && (
@@ -317,7 +330,7 @@ function Hud({ game, retry, onBuilder, onCampaign, testing, levelNumber, bestSco
                                         fill="none"
                                         stroke="currentColor"
                                         strokeWidth="2"
-                                        strokeDasharray={`${(state.remaining / 90) * 94.25} 94.25`}
+                                        strokeDasharray={`${(state.remaining / game.level.timeLimit) * 94.25} 94.25`}
                                         transform="rotate(-90 19 19)"
                                     />
                                 </svg>
@@ -358,7 +371,7 @@ function Hud({ game, retry, onBuilder, onCampaign, testing, levelNumber, bestSco
                     )}
                     {state.impactFlash > 0 && (
                         <div className="impact-toast" role="status">
-                            A little bump <strong>−50</strong>
+                            {state.lastImpactKind === 'small' ? 'A little bump' : 'A hard hit'} <strong>−{state.lastImpactPenalty}</strong>
                         </div>
                     )}
                     <footer className="bottom-bar">
@@ -407,8 +420,17 @@ function Hud({ game, retry, onBuilder, onCampaign, testing, levelNumber, bestSco
                     )}
                 </>
             )}
-            <Overlay state={state} game={game} retry={retry} onBuilder={testing ? onBuilder : undefined} onCampaign={testing ? undefined : onCampaign} bestScore={bestScore} onNext={testing ? undefined : onNext} />
+            <Overlay state={state} game={game} retry={retry} onBuilder={testing ? onBuilder : undefined} onCampaign={testing ? undefined : onCampaign} bestScore={bestScore} onNext={testing ? undefined : onNext} progressionNotice={progressionNotice} />
+            {mobile && playing && !rotate && <MobileControls game={game} />}
         </div>
+        {rotate && <div className="orientation-notice" role="dialog" aria-modal="true" aria-labelledby="rotate-title">
+            <span className="rotate-symbol" aria-hidden="true">↻</span>
+            <h2 id="rotate-title">Rotate to landscape</h2>
+            <p>Turn your phone sideways for room to drive.<br />Your attempt is paused while you rotate.</p>
+            <button className="primary-button" onClick={() => void enterLandscape()}>Try landscape fullscreen<Arrow /></button>
+            <button className="text-button" onClick={testing ? onBuilder : onCampaign}>{testing ? 'Back to builder' : 'Level select'}</button>
+        </div>}
+        </>
     );
 }
 
@@ -432,6 +454,7 @@ export default function App() {
     const [builderOpened, setBuilderOpened] = useState(false);
     const [saved] = useState(readProgress);
     const [progress, setProgress] = useState(saved.progress);
+    const [unlocked, setUnlocked] = useState(saved.unlocked);
     const progressRef = useRef(progress);
     const [storageNotice, setStorageNotice] = useState(saved.notice);
     const [game, setGame] = useState(() => new ParkingGame(COURTYARD));
@@ -457,12 +480,14 @@ export default function App() {
             if (next === progressRef.current) return;
             progressRef.current = next;
             setProgress(next);
-            try { saveProgress(next); setStorageNotice(''); }
+            const retained = difficultyStatus(next, unlocked).filter((group) => group.open).map((group) => group.difficulty);
+            setUnlocked(retained);
+            try { saveProgress(next, retained); setStorageNotice(''); }
             catch { setStorageNotice('Local saving is unavailable. Your records will last only this session.'); }
         };
         record();
         return game.subscribe(record);
-    }, [game, mode, selectedLevel]);
+    }, [game, mode, selectedLevel, unlocked]);
     const enterBuilder = () => {
         game.pause();
         setBuilderOpened(true);
@@ -471,6 +496,7 @@ export default function App() {
     const openHome = () => { game.pause(); setMode('home'); };
     const openCampaign = () => { game.pause(); setMode('campaign'); };
     const playLevel = (index: number) => {
+        if (!canPlayLevel(index, progress, unlocked)) return;
         setSelectedLevel(index);
         setGame(new ParkingGame(resolveMap(structuredClone(CAMPAIGN[index].map))));
         setSceneRevision((revision) => revision + 1);
@@ -483,19 +509,22 @@ export default function App() {
     };
     const inGame = mode === 'game' || mode === 'test';
     const record = levelRecord(progress, CAMPAIGN[selectedLevel]);
+    const nextIndex = CAMPAIGN.findIndex((_, index) => index > selectedLevel && canPlayLevel(index, progress, unlocked));
+    const lockedGroup = difficultyStatus(progress, unlocked).find((group) => !group.open && group.required > 0);
+    const starsNeeded = lockedGroup ? Math.max(0, lockedGroup.required - lockedGroup.earned) : 0;
+    const progressionNotice = lockedGroup ? `${DIFFICULTY_LABELS[lockedGroup.difficulty]} is locked. Earn ${starsNeeded} more ${starsNeeded === 1 ? 'star' : 'stars'} in the previous difficulty (${lockedGroup.earned}/${lockedGroup.required}).` : 'All available challenges are unlocked. Replay to improve your stars.';
     return <>
         <main className="game-shell" hidden={!inGame}>
             {/* Keep the graphics/physics owner alive while React replaces level entities.
                 Child materials must clean up before the graphics device is destroyed. */}
-            <Application usePhysics graphicsDeviceOptions={{ antialias: true, alpha: false }}>
+            <Application usePhysics autoRender={inGame} renderNextFrame={false} graphicsDeviceOptions={{ antialias: true, alpha: false }}>
                 <SceneBoundary key={sceneRevision} game={game}>
                     {inGame && <GameScene game={game} />}
                 </SceneBoundary>
             </Application>
-            {inGame && <Hud game={game} retry={retry} onBuilder={enterBuilder} onCampaign={openCampaign} testing={mode === 'test'} levelNumber={selectedLevel + 1} bestScore={record?.bestScore} onNext={selectedLevel + 1 < CAMPAIGN.length ? () => playLevel(selectedLevel + 1) : undefined} />}
-            <div className="mobile-notice">Best played with a keyboard and mouse.</div>
+            {inGame && <Hud game={game} retry={retry} onBuilder={enterBuilder} onCampaign={openCampaign} testing={mode === 'test'} levelNumber={selectedLevel + 1} bestScore={record?.bestScore} onNext={nextIndex >= 0 ? () => playLevel(nextIndex) : undefined} progressionNotice={progressionNotice} />}
         </main>
-        {(mode === 'home' || mode === 'campaign') && <GameMenu screen={mode} progress={progress} selected={selectedLevel} notice={storageNotice} onCampaign={openCampaign} onHome={openHome} onBuilder={enterBuilder} onSelect={setSelectedLevel} onPlay={() => playLevel(selectedLevel)} />}
+        <GameMenu hidden={mode !== 'home' && mode !== 'campaign'} screen={mode === 'campaign' ? 'campaign' : 'home'} progress={progress} unlocked={unlocked} selected={selectedLevel} notice={storageNotice} onCampaign={openCampaign} onHome={openHome} onBuilder={enterBuilder} onSelect={setSelectedLevel} onContinue={() => playLevel(recommendedLevel(progress, unlocked))} onPlay={() => playLevel(selectedLevel)} />
         {builderOpened && <MapBuilder hidden={mode !== 'builder'} onExit={openHome} onTestDrive={testDrive} />}
     </>;
 }

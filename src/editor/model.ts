@@ -92,7 +92,7 @@ export function placeItem(map: MapDefinition, tool: Tool, x: number, z: number, 
     if (tool === 'target') { map.bay.x = x; map.bay.z = z; map.bay.heading = heading; return { kind: 'target', id: 'target' }; }
     if (tool === 'parking') {
         const id = freshId(map, 'parking');
-        map.parkingBays.push({ id, x, z, width: 3.4, length: 5.7, heading, wheelStop: true });
+        map.parkingBays.push({ id, x, z, width: 3.4, length: 5.7, heading, wheelStop: false });
         return { kind: 'parking', id };
     }
     const id = freshId(map, tool);

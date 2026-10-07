@@ -6,5 +6,9 @@ export default defineConfig({
     plugins: [react()],
     // Physics loads dynamically inside @playcanvas/react. Discover it before the
     // first page loads so dependency re-optimization cannot interrupt startup.
-    optimizeDeps: { include: ['sync-ammo'] }
+    optimizeDeps: { include: ['sync-ammo'] },
+    server: {
+      port: 3013,
+      allowedHosts: ["dev.manethpak.dev"]
+    }
 });

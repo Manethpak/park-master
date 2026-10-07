@@ -1,10 +1,10 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ASSETS, vehicleGeometry } from '../game/assets.ts';
-import { CAMPAIGN, levelRecord, scoreStars } from '../game/campaign.ts';
+import { CAMPAIGN, DIFFICULTY_LABELS, canPlayLevel, difficultyStatus, levelRecord, recommendedLevel, scoreStars } from '../game/campaign.ts';
 import type { CampaignProgress } from '../game/campaign.ts';
 import { roadPosition } from '../game/maps.ts';
-import type { MapDefinition } from '../game/types.ts';
-import sedan from '../assets/car-kit/preview/sedan.png';
+import type { Difficulty, MapDefinition } from '../game/types.ts';
+import { CarShowcase } from './CarShowcase.tsx';
 import './menu.css';
 
 export function Stars({ count, label = `${count} of 3 stars` }: { count: number; label?: string }) {
@@ -43,45 +43,74 @@ function LevelPreview({ map }: { map: MapDefinition }) {
     </svg>;
 }
 
-export function GameMenu({ screen, progress, selected, notice, onCampaign, onHome, onBuilder, onSelect, onPlay }: {
-    screen: 'home' | 'campaign'; progress: CampaignProgress; selected: number; notice: string;
-    onCampaign: () => void; onHome: () => void; onBuilder: () => void; onSelect: (index: number) => void; onPlay: () => void;
+export function GameMenu({ hidden, screen, progress, unlocked, selected, notice, onCampaign, onHome, onBuilder, onSelect, onPlay, onContinue }: {
+    hidden: boolean;
+    screen: 'home' | 'campaign'; progress: CampaignProgress; unlocked: Difficulty[]; selected: number; notice: string;
+    onCampaign: () => void; onHome: () => void; onBuilder: () => void; onSelect: (index: number) => void; onPlay: () => void; onContinue: () => void;
 }) {
     const primary = useRef<HTMLButtonElement>(null);
+    const [filter, setFilter] = useState('all');
     const level = CAMPAIGN[selected];
     const record = levelRecord(progress, level);
     const totalStars = CAMPAIGN.reduce((total, item) => total + scoreStars(levelRecord(progress, item)?.bestScore ?? 0, Boolean(levelRecord(progress, item))), 0);
     const completed = CAMPAIGN.filter((item) => levelRecord(progress, item)).length;
-    useEffect(() => { primary.current?.focus(); }, [screen]);
+    const groups = difficultyStatus(progress, unlocked);
+    const recommended = recommendedLevel(progress, unlocked);
+    const open = canPlayLevel(selected, progress, unlocked);
+    const selectedGroup = groups.find((group) => group.difficulty === (level.map.difficulty ?? 'easy'))!;
+    const lockMessage = (group: typeof selectedGroup) => group.required > 0
+        ? `Earn ${group.required} ${DIFFICULTY_LABELS[groups[groups.indexOf(group) - 1].difficulty]} stars to unlock · ${group.earned}/${group.required}`
+        : 'Waiting for levels in the previous difficulty.';
+    const visible = CAMPAIGN.map((item, index) => ({ item, index })).filter(({ item }) => {
+        const best = levelRecord(progress, item);
+        return filter === 'all' || (filter === 'unplayed' ? !best : Boolean(best) && scoreStars(best?.bestScore ?? 0, true) < 3);
+    });
+    useEffect(() => { if (!hidden) primary.current?.focus(); }, [screen, hidden]);
     useEffect(() => {
+        if (hidden) return;
         const keydown = (event: KeyboardEvent) => {
             if (event.key === 'Escape' && screen === 'campaign') { event.preventDefault(); onHome(); }
             if (screen === 'campaign' && (event.key === 'ArrowRight' || event.key === 'ArrowDown' || event.key === 'ArrowLeft' || event.key === 'ArrowUp')) {
-                event.preventDefault(); onSelect((selected + (event.key === 'ArrowRight' || event.key === 'ArrowDown' ? 1 : CAMPAIGN.length - 1)) % CAMPAIGN.length);
+                if ((event.target as HTMLElement)?.matches('input, select, textarea')) return;
+                if (!visible.length) return;
+                event.preventDefault();
+                const current = visible.findIndex(({ index }) => index === selected);
+                const direction = event.key === 'ArrowRight' || event.key === 'ArrowDown' ? 1 : -1;
+                onSelect(visible[(current + direction + visible.length) % visible.length].index);
             }
         };
         window.addEventListener('keydown', keydown);
         return () => window.removeEventListener('keydown', keydown);
-    }, [screen, selected, onHome, onSelect]);
-    return <main className="game-menu" aria-label={screen === 'home' ? 'Main menu' : 'Campaign level select'}>
+    }, [hidden, screen, selected, onHome, onSelect, visible]);
+    return <main className="game-menu" hidden={hidden} aria-label={screen === 'home' ? 'Main menu' : 'Campaign level select'}>
         <div className="menu-road" aria-hidden="true"><div /><div /></div>
         <header className="menu-header"><span className="menu-logo"><b>P</b> PARK MASTER</span><div className="menu-total"><span aria-hidden="true">★</span> {totalStars} / {CAMPAIGN.length * 3}<small>CAMPAIGN STARS</small></div></header>
-        {screen === 'home' ? <div className="title-screen">
+        <div className="title-screen" hidden={screen !== 'home'}>
             <section className="title-actions"><p className="menu-kicker">THE PARKING CHALLENGE</p><h1>PARK<br /><span>MASTER</span><i aria-hidden="true">↗</i></h1><p className="title-tagline">One car. Tight spaces. Make it fit.</p>
-                <button ref={primary} className="mode-button campaign-button" onClick={onCampaign} aria-label="Play campaign"><span className="mode-icon" aria-hidden="true">▶</span><span><strong>PLAY CAMPAIGN</strong><small>{completed ? `${completed} / ${CAMPAIGN.length} levels cleared · keep your streak going` : 'Pick a level. Park clean. Earn your stars.'}</small></span><b aria-hidden="true">→</b></button>
+                <button ref={screen === 'home' ? primary : undefined} className="mode-button campaign-button" onClick={onCampaign} aria-label="Play campaign"><span className="mode-icon" aria-hidden="true">▶</span><span><strong>PLAY CAMPAIGN</strong><small>{completed ? `${completed} / ${CAMPAIGN.length} levels cleared · keep your streak going` : 'Pick a level. Park clean. Earn your stars.'}</small></span><b aria-hidden="true">→</b></button>
+                <button className="menu-back continue-home" onClick={onContinue}>Continue campaign → <span>{CAMPAIGN[recommended].map.name}</span></button>
                 <button className="mode-button workshop-button" onClick={onBuilder} aria-label="Map builder"><span className="mode-icon" aria-hidden="true">▦</span><span><strong>MAP BUILDER</strong><small>Your space. Your rules. Build & test drive.</small></span><b aria-hidden="true">→</b></button>
             </section>
-            <div className="menu-showcase" aria-hidden="true"><div className="showcase-bay"><span>P</span></div><img src={sedan} alt="" /><span className="showcase-sticker">NO SPACE?<br />NO PROBLEM.</span><span className="showcase-cone">▲</span></div>
-        </div> : <section className="campaign-screen" aria-label="Campaign">
+            <div className="menu-showcase"><CarShowcase active={!hidden && screen === 'home'} /><span className="showcase-sticker" aria-hidden="true">NO SPACE?<br />NO PROBLEM.</span></div>
+        </div>
+        {screen === 'campaign' && <section className="campaign-screen" aria-label="Campaign">
             <div className="campaign-heading"><button className="menu-back" onClick={onHome}>← Main menu</button><h1>SELECT LEVEL</h1><p>{completed} / {CAMPAIGN.length} cleared</p></div>
-            <div className="campaign-layout"><div className="campaign-levels" aria-label="Campaign levels">{CAMPAIGN.map((item, index) => {
+            <div className="campaign-toolbar"><label>Show <select aria-label="Filter levels" value={filter} onChange={(event) => setFilter(event.target.value)}><option value="all">All levels</option><option value="unplayed">Unplayed</option><option value="improve">Improve stars</option></select></label><button className="menu-back" onClick={() => { setFilter('all'); onSelect(recommended); }}>Recommended → {CAMPAIGN[recommended].map.name}</button></div>
+            <div className="campaign-layout"><div className="campaign-levels" aria-label="Campaign levels">{groups.map((group) => <section className={`difficulty-group ${group.open ? '' : 'locked'}`} key={group.difficulty} aria-label={`${DIFFICULTY_LABELS[group.difficulty]} levels`}>
+                <div className="difficulty-heading"><h2>{DIFFICULTY_LABELS[group.difficulty]} <span>{group.open ? 'OPEN' : 'LOCKED'}</span></h2><strong>★ {group.stars}/{group.maximum}</strong></div>
+                {!group.open && <p className="unlock-message">{lockMessage(group)}</p>}
+                {visible.filter(({ item }) => (item.map.difficulty ?? 'easy') === group.difficulty).map(({ item, index }) => {
                 const best = levelRecord(progress, item);
                 return <button key={item.map.id} className={`level-tile ${index === selected ? 'selected' : ''}`} aria-label={`Select level ${index + 1}: ${item.map.name}`} aria-pressed={index === selected} onClick={() => onSelect(index)}>
-                    <span className="level-number">{String(index + 1).padStart(2, '0')}</span><span className="level-tile-info"><strong>{item.map.name}</strong><small>{best ? `BEST ${best.bestScore} PTS` : 'NOT CLEARED'}</small></span><Stars count={scoreStars(best?.bestScore ?? 0, Boolean(best))} />
+                    <span className="level-number">{String(index + 1).padStart(2, '0')}</span><span className="level-tile-info"><strong>{item.map.name}</strong><small>{item.map.challenge ?? 'Parking precision'}</small><small>{!group.open ? 'LOCKED · PREVIEW AVAILABLE' : best ? `BEST ${best.bestScore} PTS` : 'NOT CLEARED'}{index === recommended ? ' · RECOMMENDED' : ''}</small></span><Stars count={scoreStars(best?.bestScore ?? 0, Boolean(best))} />
                 </button>;
-            })}<div className="more-levels"><span aria-hidden="true">⚑</span><p>More parking challenges<br />coming down the road.</p></div></div>
-                <div className="level-briefing"><div className="level-map-frame"><LevelPreview map={level.map} /><span className="map-label">{String(selected + 1).padStart(2, '0')} / {level.map.playerVehicle?.toUpperCase() ?? 'SEDAN'}</span></div><div className="briefing-details"><div><p className="menu-kicker">PARKING CHALLENGE {String(selected + 1).padStart(2, '0')}</p><h2>{level.map.name}</h2></div><Stars count={scoreStars(record?.bestScore ?? 0, Boolean(record))} /><p className="level-mission">Find the green bay. Face the arrow. Hold for one second.</p><dl><div><dt>TIME LIMIT</dt><dd>90<span> SEC</span></dd></div><div><dt>BEST SCORE</dt><dd>{record ? record.bestScore : '—'}<span> PTS</span></dd></div><div><dt>IMPACT</dt><dd>−50<span> PTS</span></dd></div></dl>
-                    <p className="star-goals">★ Park successfully <span>★★ 500+</span> <span>★★★ 800+</span></p><button ref={primary} className="menu-launch" onClick={onPlay}>{record ? 'REPLAY LEVEL' : 'START LEVEL'}<span aria-hidden="true">▶</span></button></div></div>
+            })}
+                {!CAMPAIGN.some((item) => (item.map.difficulty ?? 'easy') === group.difficulty) && <p className="group-empty">Challenges coming down the road.</p>}
+            </section>)}{!visible.length && <p className="group-empty" role="status">No levels match this filter. Try All levels.</p>}</div>
+                <div className="level-briefing"><div className="level-map-frame"><LevelPreview map={level.map} /><span className="map-label">{String(selected + 1).padStart(2, '0')} / {level.map.playerVehicle?.toUpperCase() ?? 'SEDAN'}</span></div><div className="briefing-details"><div><p className="menu-kicker">PARKING CHALLENGE {String(selected + 1).padStart(2, '0')}</p><h2>{level.map.name}</h2></div><Stars count={scoreStars(record?.bestScore ?? 0, Boolean(record))} /><p className="level-mission">Find the green bay. Face the arrow. Hold for one second.</p><dl><div><dt>TIME LIMIT</dt><dd>{level.map.timeLimit}<span> SEC</span></dd></div><div><dt>BEST SCORE</dt><dd>{record ? record.bestScore : '—'}<span> PTS</span></dd></div><div><dt>IMPACT</dt><dd>−{level.map.smallImpactPenalty ?? 10}<span> SMALL</span><br />−{level.map.impactPenalty}<span> HARD</span></dd></div></dl>
+                    <p className="challenge-label">{DIFFICULTY_LABELS[level.map.difficulty ?? 'easy']} · {level.map.challenge ?? 'Parking precision'}</p>
+                    {!open && <p className="briefing-lock" role="status">{lockMessage(selectedGroup)}</p>}
+                    <p className="star-goals">★ 1–300 <span>★★ 301–600</span> <span>★★★ 601+</span></p><button ref={primary} className="menu-launch" onClick={onPlay} disabled={!open}>{!open ? 'LEVEL LOCKED' : record ? 'REPLAY LEVEL' : 'START LEVEL'}<span aria-hidden="true">{open ? '▶' : '⊘'}</span></button></div></div>
             </div>
         </section>}
         <footer className="menu-footer"><span><kbd>ENTER</kbd> Select <kbd>↑</kbd><kbd>↓</kbd> Browse <kbd>ESC</kbd> Back</span><span>KEYBOARD + MOUSE <i /> LOCAL SAVE</span></footer>

@@ -11,7 +11,7 @@
 
 ## Project context
 
-Park Master is a desktop parking puzzle using React, TypeScript, Vite, `@playcanvas/react`, PlayCanvas Engine, and `sync-ammo`. Keep the React-owned `<Application usePhysics>` architecture. The prototype contains one courtyard level and one player sedan; mobile controls, traffic, vehicle selection, progression, and online scores are deferred.
+Park Master is a desktop and mobile parking puzzle using React, TypeScript, Vite, `@playcanvas/react`, PlayCanvas Engine, and `sync-ammo`. Keep the React-owned `<Application usePhysics>` architecture. Mobile gameplay uses width-aware touch pedals and steering buttons, with a portrait pause prompt and optional fullscreen landscape lock. Traffic and online scores are deferred; the map builder remains desktop-oriented.
 
 Read [README.md](README.md) for setup, controls, scoring, and available commands. Use pnpm; Node.js must satisfy the version in `package.json`.
 
@@ -27,7 +27,7 @@ Read [README.md](README.md) for setup, controls, scoring, and available commands
 
 Keep simulation work in Engine callbacks and React subscribed to HUD snapshots. Use actual body velocity for handling; let physics resolve obstacle contact. Prevent stationary rotation and preserve natural reverse steering. Restart must restore the car, movable props, timer, score, and contact state. Clear held inputs on pause or focus loss.
 
-Preserve the parking rules: the entire car footprint must be inside the bay, heading within 10 degrees of its arrow, speed below 0.15 m/s, continuously for one second. The attempt lasts 90 seconds. Score is `max(0, round(1000 × remainingSeconds / 90) − 50 × impacts)`; success freezes the score and timeout scores zero.
+Preserve the parking rules: the entire car footprint must be inside the bay, heading within 10 degrees of its arrow, speed below 0.15 m/s, continuously for one second. The default attempt lasts 90 seconds; maps save a configurable `timeLimit`. Score is `max(0, round(1000 × remainingSeconds / timeLimit) − accumulatedImpactPoints)`; success freezes the score and timeout scores zero. Maps save `smallImpactPenalty` (default 10 for cones and boxes) and `impactPenalty` (default 25 for hard obstacles). Successful scores earn 0 stars at zero, 1 star at 1–300, 2 stars at 301–600, and 3 stars at 601–1000. Global map settings, player vehicle, playable zone, and level validation belong in the left sidebar's Map settings tab; placement tools and the scene list belong in its Assets tab. The right sidebar is reserved for element inspection. Switching sidebar tabs preserves the selected element.
 
 ## Assets and scene conventions
 

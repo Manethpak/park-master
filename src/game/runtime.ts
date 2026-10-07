@@ -54,7 +54,7 @@ export class ParkingRuntime {
         app.graphicsDevice.maxPixelRatio = Math.min(window.devicePixelRatio, 2);
         app.resizeCanvas();
         this.canvas.tabIndex = 0;
-        this.canvas.setAttribute('aria-label', 'Parking game. W and S drive, mouse steers, Space brakes.');
+        this.canvas.setAttribute('aria-label', 'Parking game. W and S or touch pedals drive, mouse or touch arrows steer, Space or Stop brakes.');
         window.addEventListener('keydown', this.keyDown);
         window.addEventListener('keyup', this.keyUp);
         window.addEventListener('blur', this.blur);
@@ -69,6 +69,7 @@ export class ParkingRuntime {
 
     private clearInput = () => {
         this.keys.clear();
+        this.game.touchControls.clear();
         this.steeringInput = 0;
     };
     private focusCanvas = () => this.canvas.focus();
@@ -101,6 +102,7 @@ export class ParkingRuntime {
         this.keys.delete(event.code);
     };
     private pointerMove = (event: PointerEvent) => {
+        if (event.pointerType === 'touch') return;
         if (this.isUi(event.target)) {
             this.steeringInput = 0;
             return;
@@ -111,7 +113,9 @@ export class ParkingRuntime {
 
     private collisionStart = (result: ContactResult) => {
         if (this.game.level.surfaces?.some((surface) => surface.support && surface.id === result.other.name)) return;
-        this.game.impact(result.other.guid);
+        const object = this.game.level.objects.find((object) => object.id === result.other.name);
+        const small = object?.asset === 'cone' || object?.asset === 'box';
+        this.game.impact(result.other.guid, small ? 'small' : 'hard');
     };
     private collisionEnd = (other: Entity) => this.game.contacts.leave(other.guid);
 
@@ -167,11 +171,13 @@ export class ParkingRuntime {
         const longitudinal = body.linearVelocity.x * fx + body.linearVelocity.z * fz;
         if (phase === 'playing' && dt > 0) {
             const vehicle = vehicleGeometry(this.game.level.playerVehicle);
-            const forward = this.keys.has('KeyW') || this.keys.has('ArrowUp');
-            const reverse = this.keys.has('KeyS') || this.keys.has('ArrowDown');
+            const touch = new Set(this.game.touchControls.values());
+            const forward = this.keys.has('KeyW') || this.keys.has('ArrowUp') || touch.has('forward');
+            const reverse = this.keys.has('KeyS') || this.keys.has('ArrowDown') || touch.has('reverse');
             const throttle = Number(forward) - Number(reverse);
-            const speed = stepSpeed(longitudinal, throttle, this.keys.has('Space'), dt);
-            this.steering = stepSteering(this.steering, this.steeringInput, dt);
+            const speed = stepSpeed(longitudinal, throttle, this.keys.has('Space') || touch.has('stop'), dt);
+            const touchSteering = Number(touch.has('right')) - Number(touch.has('left'));
+            this.steering = stepSteering(this.steering, touch.size ? touchSteering : this.steeringInput, dt);
             const grip = Math.exp(-DRIVING.lateralGrip * dt);
             body.linearVelocity = this.velocity.set(
                 fx * speed + (body.linearVelocity.x - fx * longitudinal) * grip,
@@ -182,7 +188,7 @@ export class ParkingRuntime {
             body.angularVelocity = this.angular.set(0, yawRate, 0);
             this.wheelRoll += (((speed * dt) / vehicle.wheelRadius) * 180) / Math.PI;
             this.wheels.forEach((wheel, index) =>
-                wheel.setLocalEulerAngles(this.wheelRoll % 360, index < 2 ? this.steering : 0, 0)
+                wheel.setLocalEulerAngles(this.wheelRoll % 360, index < 2 ? -this.steering : 0, 0)
             );
             this.game.tick(
                 clockDt,
@@ -215,7 +221,7 @@ export class ParkingRuntime {
             __parkTest: {
                 snapshot: () => ({
                     ...this.game.session,
-                    level: { id: this.game.level.id, name: this.game.level.name, spawn: this.game.level.spawn, bay: this.game.level.bay, playerVehicle: this.game.level.playerVehicle ?? 'sedan', playableZone: this.game.level.playableZone },
+                    level: { id: this.game.level.id, name: this.game.level.name, timeLimit: this.game.level.timeLimit, impactPenalty: this.game.level.impactPenalty, smallImpactPenalty: this.game.level.smallImpactPenalty ?? 10, spawn: this.game.level.spawn, bay: this.game.level.bay, playerVehicle: this.game.level.playerVehicle ?? 'sedan', playableZone: this.game.level.playableZone },
                     vehicle: vehicleGeometry(this.game.level.playerVehicle),
                     carCollider: this.player.collision?.halfExtents.toArray().map((extent) => extent * 2),
                     roads: this.game.level.objects.filter((object) => object.asset.startsWith('road')).map((object) => {
@@ -258,6 +264,7 @@ export class ParkingRuntime {
     }
 
     destroy() {
+        this.clearInput();
         this.unsubscribe();
         this.app.off('update', this.update);
         this.player.collision?.off('collisionstart', this.collisionStart);

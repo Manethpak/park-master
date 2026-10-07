@@ -129,7 +129,7 @@ function WorldObject({
     );
 }
 
-function BayMarking({ bay, id, target = false, wheelStop = true }: { bay: ParkingBay; id: string; target?: boolean; wheelStop?: boolean }) {
+function BayMarking({ bay, id, target = false, wheelStop = false }: { bay: ParkingBay; id: string; target?: boolean; wheelStop?: boolean }) {
     return (
         <Entity name={id} position={[bay.x, 0, bay.z]} rotation={[0, bay.heading, 0]}>
             {target && <SolidBox name={`${id}-highlight`} position={[0, 0.009, 0]} size={[bay.width, 0.016, bay.length]} color="#90b48b" />}
