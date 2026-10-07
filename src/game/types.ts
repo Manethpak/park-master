@@ -1,4 +1,6 @@
 export type Triple = [number, number, number];
+export type PlayerVehicle = 'sedan' | 'suv' | 'taxi';
+export type PlayableZone = { x: number; z: number; width: number; length: number };
 
 export type AssetDefinition = {
     pack: 'car-kit' | 'city-kit-road' | 'city-kit-suburban';
@@ -47,6 +49,8 @@ export type RoadTile = {
 };
 
 export type LevelDefinition = {
+    playerVehicle?: PlayerVehicle;
+    playableZone?: PlayableZone;
     id: string;
     name: string;
     timeLimit: number;

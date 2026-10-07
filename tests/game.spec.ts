@@ -4,7 +4,9 @@ import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 
 type Snapshot = {
-    level: { id: string; name: string; spawn: { position: number[]; heading: number }; bay: { x: number; z: number; heading: number } };
+    level: { id: string; name: string; playerVehicle: string; playableZone?: { x: number; z: number; width: number; length: number }; spawn: { position: number[]; heading: number }; bay: { x: number; z: number; heading: number } };
+    vehicle: { width: number; height: number; length: number; wheelbase: number };
+    carCollider: number[];
     roads: { id: string; position: number[]; heading: number; dimensions: number[] }[];
     phase: string;
     hasMoved: boolean;
@@ -25,6 +27,7 @@ type TestApi = {
     snapshot: () => Snapshot;
     teleport: (x: number, z: number, heading: number) => void;
     setRemaining: (remaining: number) => void;
+    addImpacts: (count: number) => void;
 };
 
 declare global {
@@ -41,11 +44,129 @@ const teleport = (page: Page, x: number, z: number, heading: number) =>
 
 async function start(page: Page) {
     await page.goto('/');
+    await page.getByRole('button', { name: 'Play campaign', exact: true }).click();
+    await page.getByRole('button', { name: /START LEVEL|REPLAY LEVEL/ }).click();
     await page.getByRole('button', { name: 'Let’s park' }).click();
     await expect.poll(async () => (await snapshot(page)).phase).toBe('playing');
     const canvas = (await page.locator('canvas').boundingBox())!;
     await page.mouse.move(canvas.x + canvas.width / 2, canvas.y + canvas.height / 2);
 }
+
+test('main menu offers campaign or sandbox, with keyboard navigation and a real level preview', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (error) => errors.push(error.message));
+    await page.goto('/');
+    await expect(page.getByRole('main', { name: 'Main menu', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Play campaign', exact: true })).toBeFocused();
+    await expect(page.getByRole('button', { name: 'Map builder', exact: true })).toBeVisible();
+    expect(await page.evaluate(() => '__parkTest' in window)).toBe(false);
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('heading', { name: 'SELECT LEVEL', exact: true })).toBeVisible();
+    const level = page.getByRole('button', { name: 'Select level 1: The Courtyard', exact: true });
+    await expect(level).toHaveAttribute('aria-pressed', 'true');
+    await expect(level.getByRole('img', { name: '0 of 3 stars', exact: true })).toBeVisible();
+    await expect(page.getByRole('img', { name: 'The Courtyard map preview', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'START LEVEL', exact: true })).toBeFocused();
+    await page.keyboard.press('ArrowDown');
+    await expect(level).toHaveAttribute('aria-pressed', 'true');
+    await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: 'Map builder', exact: true }).click();
+    await expect(page.getByRole('region', { name: 'Map builder' })).toBeVisible();
+    await expect(page.getByRole('button', { name: /promote|publish|add to campaign/i })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Main menu', exact: true }).click();
+    await expect(page.getByRole('main', { name: 'Main menu', exact: true })).toBeVisible();
+    expect(errors).toEqual([]);
+});
+
+for (const [score, stars] of [[0, 1], [499, 1], [500, 2], [799, 2], [800, 3]]) {
+    test(`campaign completion at ${score} points earns ${stars} stars and survives reload`, async ({ page }) => {
+        await start(page);
+        const level = (await snapshot(page)).level;
+        // A zero-point success is possible after penalties, but zero remaining time is a timeout.
+        await page.evaluate((points) => {
+            window.__parkTest.setRemaining(points === 0 ? 90 : points * 90 / 1000);
+            if (points === 0) window.__parkTest.addImpacts(20);
+        }, score);
+        await teleport(page, level.bay.x, level.bay.z, level.bay.heading);
+        await expect(page.getByRole('heading', { name: 'Nicely parked.', exact: true })).toBeVisible();
+        expect((await snapshot(page)).score).toBe(score);
+        await expect(page.getByRole('dialog').getByRole('img', { name: `${stars} of 3 stars`, exact: true })).toBeVisible();
+        await page.getByRole('button', { name: 'Level select', exact: true }).click();
+        const tile = page.getByRole('button', { name: 'Select level 1: The Courtyard', exact: true });
+        await expect(tile).toContainText(`BEST ${score} PTS`);
+        await expect(tile.getByRole('img', { name: `${stars} of 3 stars`, exact: true })).toBeVisible();
+        expect(await page.evaluate(() => '__parkTest' in window)).toBe(false);
+        await page.reload();
+        await page.getByRole('button', { name: 'Play campaign', exact: true }).click();
+        await expect(tile).toContainText(`BEST ${score} PTS`);
+        await expect(page.getByRole('button', { name: 'REPLAY LEVEL', exact: true })).toBeVisible();
+    });
+}
+
+test('lower-scoring replays and timeouts never reduce campaign records', async ({ page }) => {
+    await start(page);
+    const level = (await snapshot(page)).level;
+    await page.evaluate(() => window.__parkTest.setRemaining(72));
+    await teleport(page, level.bay.x, level.bay.z, level.bay.heading);
+    await expect.poll(async () => (await snapshot(page)).phase).toBe('won');
+    await page.getByRole('button', { name: 'Park it again', exact: true }).click();
+    await page.evaluate(() => window.__parkTest.setRemaining(45));
+    await teleport(page, level.bay.x, level.bay.z, level.bay.heading);
+    await expect.poll(async () => (await snapshot(page)).phase).toBe('won');
+    await expect(page.getByRole('dialog').getByRole('img', { name: '2 of 3 stars', exact: true })).toBeVisible();
+    await expect(page.getByText('PERSONAL BEST · 800 PTS', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Park it again', exact: true }).click();
+    await page.evaluate(() => window.__parkTest.setRemaining(0));
+    await expect(page.getByRole('heading', { name: 'Another lap?', exact: true })).toBeVisible();
+    await expect(page.getByRole('dialog').getByRole('img', { name: '0 of 3 stars', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Level select', exact: true }).click();
+    const tile = page.getByRole('button', { name: 'Select level 1: The Courtyard', exact: true });
+    await expect(tile).toContainText('BEST 800 PTS');
+    await expect(tile.getByRole('img', { name: '3 of 3 stars', exact: true })).toBeVisible();
+});
+
+test('builder test drives do not create campaign progress or campaign entries', async ({ page }) => {
+    await openBuilder(page);
+    await page.getByRole('button', { name: 'New map', exact: true }).click();
+    await page.getByLabel('Level name', { exact: true }).fill('My private sandbox');
+    const draft = await savedDraft(page);
+    await page.getByRole('button', { name: 'Test drive', exact: true }).click();
+    await page.getByRole('button', { name: 'Let’s park', exact: true }).click();
+    await teleport(page, draft.bay.x, draft.bay.z, draft.bay.heading);
+    await expect.poll(async () => (await snapshot(page)).phase).toBe('won');
+    expect(await page.evaluate(() => localStorage.getItem('park-master.campaign-progress.v1'))).toBeNull();
+    await page.getByRole('button', { name: 'Back to builder', exact: true }).click();
+    expect(await savedDraft(page)).toEqual(draft);
+    await page.getByRole('button', { name: 'Main menu', exact: true }).click();
+    await page.getByRole('button', { name: 'Play campaign', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Select level 1: The Courtyard', exact: true })).toBeVisible();
+    await expect(page.getByText('My private sandbox', { exact: true })).toHaveCount(0);
+    await page.getByRole('button', { name: '← Main menu', exact: true }).click();
+    await page.getByRole('button', { name: 'Map builder', exact: true }).click();
+    await expect(page.getByLabel('Level name', { exact: true })).toHaveValue('My private sandbox');
+});
+
+test('corrupt progress and unavailable storage do not block gameplay', async ({ page }) => {
+    await page.addInitScript(() => {
+        localStorage.setItem('park-master.campaign-progress.v1', '{broken');
+        const original = Storage.prototype.setItem;
+        Storage.prototype.setItem = function (key, value) {
+            if (key === 'park-master.campaign-progress.v1') throw new DOMException('Storage full', 'QuotaExceededError');
+            return original.call(this, key, value);
+        };
+    });
+    await page.goto('/');
+    await expect(page.getByRole('status')).toContainText('Saved progress is unavailable');
+    await page.getByRole('button', { name: 'Play campaign', exact: true }).click();
+    await page.getByRole('button', { name: 'START LEVEL', exact: true }).click();
+    await page.getByRole('button', { name: 'Let’s park', exact: true }).click();
+    const level = (await snapshot(page)).level;
+    await teleport(page, level.bay.x, level.bay.z, level.bay.heading);
+    await expect.poll(async () => (await snapshot(page)).phase).toBe('won');
+    await page.getByRole('button', { name: 'Level select', exact: true }).click();
+    await expect(page.getByRole('status')).toContainText('Your records will last only this session');
+    await expect(page.getByRole('button', { name: 'Select level 1: The Courtyard', exact: true })).toContainText('BEST 1000 PTS');
+});
 
 for (const pedal of ['w', 's']) {
     test(`time and score wait for ${pedal} movement, then keep counting through stops`, async ({ page }) => {
@@ -119,6 +240,8 @@ test('loads every model and palette without runtime errors, and waits to start t
         if (response.url().endsWith('Textures/colormap.png')) palettes.add(response.url());
     });
     await page.goto('/');
+    await page.getByRole('button', { name: 'Play campaign', exact: true }).click();
+    await page.getByRole('button', { name: 'START LEVEL', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Small space. Big precision.' })).toBeVisible();
     await page.waitForTimeout(400);
     const state = await snapshot(page);
@@ -276,6 +399,8 @@ test('pause and focus loss freeze the timer; timeout ends the attempt and permit
 test('a failed model load shows a readable retry screen', async ({ page }) => {
     await page.route('**/assets/kenney/car-kit/sedan.glb', (route) => route.abort());
     await page.goto('/');
+    await page.getByRole('button', { name: 'Play campaign', exact: true }).click();
+    await page.getByRole('button', { name: 'START LEVEL', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'A little roadblock.' })).toBeVisible({ timeout: 15000 });
     await expect(page.getByRole('button', { name: 'Reload the level' })).toBeVisible();
 });
@@ -310,6 +435,170 @@ async function exportMap(page: Page): Promise<MapDefinition> {
         page.getByRole('button', { name: 'Export JSON', exact: true }).click()
     ]);
     return JSON.parse(await readFile((await download.path())!, 'utf8'));
+}
+
+test('builder previews, context actions, handles, locks and editor-only hiding', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (error) => errors.push(error.message));
+    await openBuilder(page);
+    await page.getByRole('button', { name: 'New map', exact: true }).click();
+    await page.getByLabel('Search assets').fill('cone');
+    const coneCard = page.getByRole('button', { name: 'Traffic cone', exact: true });
+    await expect(coneCard.locator('img')).toBeVisible();
+    await expect.poll(() => coneCard.locator('img').evaluate((img) => (img as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+    await expect(page.getByRole('button', { name: 'Parked sedan', exact: true })).toHaveCount(0);
+    await coneCard.click();
+    await placeOnGrid(page, 0, 0);
+    const origin = await gridPoint(page, 0, 0);
+    await page.mouse.click(origin.x, origin.y, { button: 'right' });
+    await expect(page.getByRole('menu', { name: 'Object actions' })).toBeVisible();
+    await page.getByRole('menuitem', { name: 'Duplicate', exact: true }).click();
+    expect((await savedDraft(page)).objects).toHaveLength(2);
+    await page.getByRole('button', { name: 'Delete', exact: true }).click();
+    await page.getByLabel('Scene item').selectOption('object:cone-1');
+
+    const handle = page.getByRole('button', { name: 'Rotation handle', exact: true });
+    const box = (await handle.boundingBox())!;
+    const radius = origin.y - (box.y + box.height / 2);
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(origin.x - radius, origin.y, { steps: 5 });
+    await page.mouse.up();
+    await expect(page.getByLabel('Heading (°)', { exact: true })).toHaveValue('90');
+    await page.getByRole('button', { name: 'Undo', exact: true }).click();
+    expect((await savedDraft(page)).objects[0].heading).toBe(0);
+    await page.getByRole('button', { name: 'Redo', exact: true }).click();
+    expect((await savedDraft(page)).objects[0].heading).toBe(90);
+    await expect(page.getByRole('button', { name: /Resize handle/ })).toHaveCount(0);
+
+    // A cancelled rotation must not persist or create a history step.
+    const rotatedHandle = (await handle.boundingBox())!;
+    await page.mouse.move(rotatedHandle.x + rotatedHandle.width / 2, rotatedHandle.y + rotatedHandle.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(origin.x, origin.y - radius, { steps: 4 });
+    await page.keyboard.press('Escape');
+    await page.mouse.up();
+    expect((await savedDraft(page)).objects[0].heading).toBe(90);
+
+    await page.getByLabel('Lock selected item').check();
+    await expect(handle).toHaveCount(0);
+    await expect(page.getByLabel('X (m)', { exact: true })).toBeDisabled();
+    await page.mouse.click(origin.x, origin.y, { button: 'right' });
+    await expect(page.getByRole('menuitem', { name: 'Delete', exact: true })).toBeDisabled();
+    await page.keyboard.press('Escape');
+    await page.getByLabel('Lock selected item').uncheck();
+    await page.getByLabel('Hide selected item').check();
+    await expect(page.locator('svg [data-item-id="cone-1"]')).toHaveCount(0);
+    expect((await savedDraft(page)).objects).toHaveLength(1);
+    await page.getByLabel('Hide selected item').uncheck();
+
+    await page.mouse.click(origin.x, origin.y, { button: 'right' });
+    await page.getByRole('menuitem', { name: 'Duplicate & place', exact: true }).click();
+    await placeOnGrid(page, 5, 5);
+    expect((await savedDraft(page)).objects[1].position).toEqual([5, 0, 5]);
+    await page.getByRole('button', { name: 'Undo', exact: true }).click();
+    expect((await savedDraft(page)).objects).toHaveLength(1);
+    await page.mouse.click(origin.x, origin.y, { button: 'right' });
+    await page.getByRole('menuitem', { name: 'Delete', exact: true }).click();
+    expect((await savedDraft(page)).objects).toHaveLength(0);
+
+    await page.getByLabel('Scene item').selectOption('target:target');
+    const before = (await savedDraft(page)).bay;
+    const resize = (await page.getByRole('button', { name: 'Resize handle 1 1', exact: true }).boundingBox())!;
+    const end = await gridPoint(page, before.x + before.width / 2 + 1, before.z + before.length / 2 + 2);
+    await page.mouse.move(resize.x + resize.width / 2, resize.y + resize.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(end.x, end.y, { steps: 5 });
+    await page.mouse.up();
+    expect((await savedDraft(page)).bay.width).toBeGreaterThan(before.width + 0.9);
+    expect((await savedDraft(page)).bay.length).toBeGreaterThan(before.length + 1.9);
+    await page.getByRole('button', { name: 'Undo', exact: true }).click();
+    expect((await savedDraft(page)).bay).toEqual(before);
+    const spawn = await gridPoint(page, -5, 5);
+    await page.mouse.click(spawn.x, spawn.y, { button: 'right' });
+    await expect(page.getByRole('menuitem', { name: 'Duplicate', exact: true })).toBeDisabled();
+    await expect(page.getByRole('menuitem', { name: 'Delete', exact: true })).toBeDisabled();
+    expect(errors).toEqual([]);
+});
+
+test('playable zone validates footprints, resizes with history and survives export/import', async ({ page }) => {
+    await openBuilder(page);
+    await page.getByRole('button', { name: 'New map', exact: true }).click();
+    await page.getByLabel('Scene item').selectOption('target:target');
+    await page.getByLabel('Length (m)', { exact: true }).fill('4.2');
+    await page.getByRole('button', { name: 'Drive taxi', exact: true }).click();
+    await expect(page.getByRole('alert')).toHaveText('The target bay must fit the entire player car.');
+    expect((await savedDraft(page)).playerVehicle).toBeUndefined();
+    expect((await savedDraft(page)).bay.length).toBe(4.2);
+    await page.getByLabel('Length (m)', { exact: true }).fill('5.7');
+    await page.getByRole('button', { name: 'Add playable zone', exact: true }).click();
+    expect((await savedDraft(page)).playableZone).toEqual({ x: 0, z: 0, width: 30, length: 30 });
+    await page.getByLabel('Width (m)', { exact: true }).fill('10');
+    await expect(page.getByRole('button', { name: 'Test drive', exact: true })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Player spawn must fit entirely inside the playable zone.', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Undo', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Test drive', exact: true })).toBeEnabled();
+    const zoneBefore = (await savedDraft(page)).playableZone;
+    const handle = (await page.getByRole('button', { name: 'Resize handle 1 1', exact: true }).boundingBox())!;
+    const end = await gridPoint(page, 18, 16);
+    await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(end.x, end.y, { steps: 5 });
+    await page.mouse.up();
+    expect((await savedDraft(page)).playableZone!.width).toBeCloseTo(33, 1);
+    await page.getByRole('button', { name: 'Undo', exact: true }).click();
+    expect((await savedDraft(page)).playableZone).toEqual(zoneBefore);
+    await page.getByRole('button', { name: 'Drive taxi', exact: true }).click();
+    const draft = await exportMap(page);
+    expect(draft.playerVehicle).toBe('taxi');
+    await page.getByRole('button', { name: 'New map', exact: true }).click();
+    await importMap(page, draft);
+    await expect.poll(() => savedDraft(page)).toEqual(draft);
+    await importMap(page, { ...draft, playerVehicle: 'unknown' });
+    await expect(page.getByRole('alert')).toHaveText('Unsupported player vehicle.');
+    expect(await savedDraft(page)).toEqual(draft);
+    await importMap(page, { ...draft, playableZone: { ...draft.playableZone, width: -1 } });
+    await expect(page.getByRole('alert')).toHaveText(/playableZone.width must be a finite number/);
+    expect(await savedDraft(page)).toEqual(draft);
+});
+
+for (const vehicle of ['suv', 'taxi'] as const) {
+    test(`${vehicle} test drive uses matching geometry, hits the boundary, resets and parks`, async ({ page }) => {
+        await openBuilder(page);
+        await page.getByRole('button', { name: 'New map', exact: true }).click();
+        await page.getByRole('button', { name: `Drive ${vehicle}`, exact: true }).click();
+        await page.getByRole('button', { name: 'Add playable zone', exact: true }).click();
+        await page.getByLabel('Scene item').selectOption('spawn:spawn');
+        await page.getByLabel('Hide selected item').check();
+        const draft = await exportMap(page);
+        await page.getByRole('button', { name: 'Test drive', exact: true }).click();
+        await page.getByRole('button', { name: 'Let’s park', exact: true }).click();
+        const initial = await snapshot(page);
+        expect(initial.level.playerVehicle).toBe(vehicle);
+        expect(initial.level.playableZone).toEqual(draft.playableZone);
+        expect(initial.vehicle.length).toBeCloseTo((vehicle === 'suv' ? 2.7 : 2.75) * 4.2 / 2.55, 4);
+        expect(initial.vehicle.wheelbase).toBeCloseTo((vehicle === 'suv' ? 1.32 : 1.52) * 4.2 / 2.55, 4);
+        expect(initial.carCollider[0]).toBeCloseTo(initial.vehicle.width, 4);
+        expect(initial.carCollider[1]).toBeCloseTo(initial.vehicle.height, 4);
+        expect(initial.carCollider[2]).toBeCloseTo(initial.vehicle.length, 4);
+        expect(initial.wheelAngles).toHaveLength(4);
+        const canvas = (await page.locator('canvas').boundingBox())!;
+        await page.mouse.move(canvas.x + canvas.width / 2, canvas.y + canvas.height / 2);
+        await page.keyboard.down('w');
+        await expect.poll(async () => (await snapshot(page)).car[2]).toBeGreaterThan(6);
+        await expect.poll(async () => Math.abs((await snapshot(page)).wheelAngles[0][0])).toBeGreaterThan(1);
+        await expect.poll(async () => (await snapshot(page)).impacts).toBeGreaterThan(0);
+        await page.keyboard.up('w');
+        const blocked = await snapshot(page);
+        expect(blocked.car[2] + blocked.vehicle.length / 2).toBeLessThan(15.15);
+        await page.keyboard.press('r');
+        expect((await snapshot(page)).car[2]).toBeCloseTo(5, 2);
+        expect((await snapshot(page)).impacts).toBe(0);
+        await teleport(page, draft.bay.x, draft.bay.z, draft.bay.heading);
+        await expect.poll(async () => (await snapshot(page)).phase).toBe('won');
+        await page.getByRole('button', { name: 'Back to builder', exact: true }).click();
+        expect(await exportMap(page)).toEqual(draft);
+    });
 }
 
 test('builder snaps roads and props, edits with history, exports/imports, and restores local drafts', async ({ page }) => {

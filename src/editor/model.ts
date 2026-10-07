@@ -1,8 +1,8 @@
-import { ASSETS } from '../game/assets.ts';
+import { ASSETS, vehicleGeometry } from '../game/assets.ts';
 import { ROAD_ASSETS, roadPosition } from '../game/maps.ts';
 import type { MapDefinition, RoadAsset } from '../game/types.ts';
 
-export type Selection = { kind: 'road' | 'object' | 'surface' | 'parking' | 'spawn' | 'target'; id: string };
+export type Selection = { kind: 'road' | 'object' | 'surface' | 'parking' | 'spawn' | 'target' | 'zone'; id: string };
 export type Item = Selection & { x: number; z: number; y: number; heading: number; width: number; length: number; height?: number; asset?: string; color?: string; body?: string; mass?: number; solid?: boolean; support?: boolean; wheelStop?: boolean };
 export type Tool = 'select' | 'spawn' | 'target' | 'parking' | 'floor' | 'curb' | `road:${RoadAsset}` | `object:${string}`;
 
@@ -13,6 +13,7 @@ export const PROP_LABELS: Record<string, string> = {
 
 export function items(map: MapDefinition): Item[] {
     return [
+        ...(map.playableZone ? [{ ...map.playableZone, kind: 'zone' as const, id: 'playable-zone', y: 0, heading: 0 }] : []),
         ...map.surfaces.map((s) => ({ kind: 'surface' as const, id: s.id, x: s.position[0], y: s.position[1], z: s.position[2], heading: s.heading, width: s.size[0], height: s.size[1], length: s.size[2], color: s.color, solid: s.solid, support: s.support })),
         ...map.roads.map((r) => { const [x, z] = roadPosition(map, r); return { kind: 'road' as const, id: r.id, x, z, y: 0, heading: r.rotation, width: 5, length: 5, asset: r.asset }; }),
         ...map.parkingBays.map((b) => ({ ...b, kind: 'parking' as const, y: 0 })),
@@ -21,12 +22,13 @@ export function items(map: MapDefinition): Item[] {
             const a = ASSETS[o.asset];
             return { kind: 'object' as const, id: o.id, x: o.position[0], y: o.position[1], z: o.position[2], heading: o.heading, width: a.dimensions[0] * a.scale, length: a.dimensions[2] * a.scale, asset: o.asset, body: o.body, mass: o.mass };
         }),
-        { kind: 'spawn' as const, id: 'spawn', x: map.spawn.position[0], y: map.spawn.position[1], z: map.spawn.position[2], heading: map.spawn.heading, width: ASSETS.sedan.dimensions[0] * ASSETS.sedan.scale, length: 4.2 }
+        { kind: 'spawn' as const, id: 'spawn', x: map.spawn.position[0], y: map.spawn.position[1], z: map.spawn.position[2], heading: map.spawn.heading, width: vehicleGeometry(map.playerVehicle).width, length: vehicleGeometry(map.playerVehicle).length }
     ];
 }
 
 export function moveItem(map: MapDefinition, selection: Selection, x: number, z: number) {
     switch (selection.kind) {
+        case 'zone': if (map.playableZone) { map.playableZone.x = x; map.playableZone.z = z; } break;
         case 'road': {
             const road = map.roads.find((r) => r.id === selection.id)!;
             road.cell = [Math.round((x - map.grid.origin[0]) / 5), Math.round((z - map.grid.origin[1]) / 5)]; break;
@@ -42,7 +44,9 @@ export function moveItem(map: MapDefinition, selection: Selection, x: number, z:
 export function setProperty(map: MapDefinition, selection: Selection, key: string, value: number | string | boolean) {
     const item = items(map).find((i) => i.kind === selection.kind && i.id === selection.id)!;
     if (key === 'x' || key === 'z') { moveItem(map, selection, key === 'x' ? Number(value) : item.x, key === 'z' ? Number(value) : item.z); return; }
-    if (selection.kind === 'road') {
+    if (selection.kind === 'zone') {
+        if (map.playableZone && ['width', 'length'].includes(key)) Object.assign(map.playableZone, { [key]: value });
+    } else if (selection.kind === 'road') {
         const r = map.roads.find((r) => r.id === selection.id)!;
         if (key === 'heading') r.rotation = Number(value);
         else if (key === 'column') r.cell[0] = Number(value);
@@ -97,6 +101,7 @@ export function placeItem(map: MapDefinition, tool: Tool, x: number, z: number, 
 }
 
 export function deleteItem(map: MapDefinition, selected: Selection) {
+    if (selected.kind === 'zone') delete map.playableZone;
     if (selected.kind === 'road') map.roads = map.roads.filter((r) => r.id !== selected.id);
     if (selected.kind === 'object') map.objects = map.objects.filter((o) => o.id !== selected.id);
     if (selected.kind === 'surface') map.surfaces = map.surfaces.filter((s) => s.id !== selected.id);

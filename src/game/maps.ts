@@ -1,4 +1,4 @@
-import { ASSETS, CAR_LENGTH, CAR_WIDTH } from './assets.ts';
+import { ASSETS, vehicleGeometry } from './assets.ts';
 import type { LevelDefinition, MapDefinition, ParkingBay, RoadAsset, RoadTile } from './types.ts';
 
 export const ROAD_SIZE = 5;
@@ -28,6 +28,7 @@ export function resolveMap(map: MapDefinition): LevelDefinition {
     return {
         id: map.id, name: map.name, timeLimit: map.timeLimit, impactPenalty: map.impactPenalty,
         spawn: structuredClone(map.spawn), bay: structuredClone(map.bay),
+        playerVehicle: map.playerVehicle, playableZone: map.playableZone && { ...map.playableZone },
         objects: [
             ...structuredClone(map.objects),
             ...map.roads.map((road) => {
@@ -64,7 +65,7 @@ export function parseMap(value: unknown): MapDefinition {
     const ids = new Set(['player', 'camera', 'sun', 'parking-target', 'spawn', 'target']);
     const id = (v: unknown, path: string): string => {
         const result = string(v, path);
-        if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$/.test(result) || result.startsWith('road-support-')) fail(`${path} contains an unsupported or reserved ID.`);
+        if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$/.test(result) || result.startsWith('road-support-') || result.startsWith('zone-boundary-') || result === 'playable-zone') fail(`${path} contains an unsupported or reserved ID.`);
         if (ids.has(result)) fail(`Duplicate or reserved ID: ${result}.`);
         ids.add(result);
         return result;
@@ -81,7 +82,9 @@ export function parseMap(value: unknown): MapDefinition {
     if (grid.cellSize !== ROAD_SIZE) fail('Road cellSize must be 5 metres to match the calibrated tiles.');
     const spawn = record(m.spawn, 'spawn');
     const target = bay(m.bay, 'bay');
-    if (target.width < CAR_WIDTH || target.length < CAR_LENGTH) fail('The target bay must fit the entire player car.');
+    if (m.playerVehicle !== undefined && !['sedan', 'suv', 'taxi'].includes(m.playerVehicle as string)) fail('Unsupported player vehicle.');
+    const vehicle = vehicleGeometry(m.playerVehicle as MapDefinition['playerVehicle']);
+    if (target.width < vehicle.width || target.length < vehicle.length) fail('The target bay must fit the entire player car.');
     const occupied = new Set<string>();
     const map: MapDefinition = {
         schemaVersion: 1, id: string(m.id, 'id'), name: string(m.name, 'name'), timeLimit: 90, impactPenalty: 50,
@@ -120,6 +123,11 @@ export function parseMap(value: unknown): MapDefinition {
             return { ...bay(b, `parkingBays[${i}]`), id: id(b.id, `parkingBays[${i}].id`), wheelStop: boolean(b.wheelStop, `parkingBays[${i}].wheelStop`) };
         })
     };
+    if (m.playerVehicle !== undefined) map.playerVehicle = m.playerVehicle as MapDefinition['playerVehicle'];
+    if (m.playableZone !== undefined) {
+        const zone = record(m.playableZone, 'playableZone');
+        map.playableZone = { x: number(zone.x, 'playableZone.x'), z: number(zone.z, 'playableZone.z'), width: number(zone.width, 'playableZone.width', 5, 500), length: number(zone.length, 'playableZone.length', 5, 500) };
+    }
     if (map.objects.length + map.roads.length + map.surfaces.length + map.parkingBays.length > 2000) fail('A map can contain at most 2000 items.');
     return map;
 }
@@ -145,4 +153,21 @@ export function mapWarnings(map: MapDefinition): string[] {
     }
     if (!map.surfaces.some((s) => s.support)) warnings.push('Add a solid ground surface to support the car and props.');
     return warnings;
+}
+
+export function footprintInside(zone: NonNullable<MapDefinition['playableZone']>, x: number, z: number, width: number, length: number, heading = 0) {
+    const angle = heading * Math.PI / 180;
+    const halfX = (Math.abs(Math.cos(angle)) * width + Math.abs(Math.sin(angle)) * length) / 2;
+    const halfZ = (Math.abs(Math.sin(angle)) * width + Math.abs(Math.cos(angle)) * length) / 2;
+    return Math.abs(x - zone.x) + halfX <= zone.width / 2 && Math.abs(z - zone.z) + halfZ <= zone.length / 2;
+}
+
+export function mapErrors(map: MapDefinition): string[] {
+    const zone = map.playableZone;
+    if (!zone) return [];
+    const errors: string[] = [];
+    const vehicle = vehicleGeometry(map.playerVehicle);
+    if (!footprintInside(zone, map.spawn.position[0], map.spawn.position[2], vehicle.width, vehicle.length, map.spawn.heading)) errors.push('Player spawn must fit entirely inside the playable zone.');
+    if (!footprintInside(zone, map.bay.x, map.bay.z, map.bay.width, map.bay.length, map.bay.heading)) errors.push('Target bay must fit entirely inside the playable zone.');
+    return errors;
 }

@@ -1,5 +1,5 @@
 import { Application } from '@playcanvas/react';
-import { Component, useCallback, useEffect, useState, useSyncExternalStore } from 'react';
+import { Component, useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { CSSProperties, ErrorInfo, ReactNode } from 'react';
 
 import { COURTYARD } from './game/level.ts';
@@ -8,6 +8,8 @@ import { MapBuilder } from './editor/MapBuilder.tsx';
 import { GameScene } from './game/Scene.tsx';
 import { ParkingGame } from './game/session.ts';
 import type { GameSession, MapDefinition } from './game/types.ts';
+import { CAMPAIGN, levelRecord, readProgress, recordCompletion, saveProgress, scoreStars } from './game/campaign.ts';
+import { GameMenu, Stars } from './ui/GameMenu.tsx';
 
 function Arrow() {
     return (
@@ -99,7 +101,9 @@ function Controls() {
     );
 }
 
-function Overlay({ state, game, retry }: { state: GameSession; game: ParkingGame; retry: () => void }) {
+function Overlay({ state, game, retry, onBuilder, onCampaign, bestScore, onNext }: { state: GameSession; game: ParkingGame; retry: () => void; onBuilder?: () => void; onCampaign?: () => void; bestScore?: number; onNext?: () => void }) {
+    const leave = onBuilder ?? onCampaign;
+    const returnLabel = onBuilder ? 'Back to builder' : 'Level select';
     const focusCanvas = () => document.querySelector<HTMLCanvasElement>('canvas')?.focus();
     const start = () => {
         game.start();
@@ -131,6 +135,7 @@ function Overlay({ state, game, retry }: { state: GameSession; game: ParkingGame
                         Reload the level
                         <Arrow />
                     </button>
+                    {leave && <button className="text-button" onClick={leave}>{returnLabel}</button>}
                 </div>
             </div>
         );
@@ -190,6 +195,7 @@ function Overlay({ state, game, retry }: { state: GameSession; game: ParkingGame
                     <button className="text-button" onClick={start}>
                         Restart this attempt
                     </button>
+                    {leave && <button className="text-button" onClick={leave}>{returnLabel}</button>}
                 </div>
             </div>
         );
@@ -200,6 +206,7 @@ function Overlay({ state, game, retry }: { state: GameSession; game: ParkingGame
                 <span className="eyebrow">{won ? 'RIGHT WHERE YOU BELONG' : 'THE CLOCK HAS SPOKEN'}</span>
                 <div className={`result-symbol ${won ? 'success' : ''}`}>{won ? 'P' : '↺'}</div>
                 <h2 id="result-title">{won ? 'Nicely parked.' : 'Another lap?'}</h2>
+                {!onBuilder && <Stars count={scoreStars(state.score, won)} />}
                 <p>
                     {won
                         ? 'A tight spot, a steady hand. That’s how it’s done.'
@@ -222,10 +229,13 @@ function Overlay({ state, game, retry }: { state: GameSession; game: ParkingGame
                         <strong>{state.impacts}</strong>
                     </div>
                 </div>
+                {!onBuilder && bestScore !== undefined && <p className="campaign-best">PERSONAL BEST · {bestScore} PTS</p>}
+                {won && onNext && <button className="primary-button" onClick={onNext}>Next level<Arrow /></button>}
                 <button className="primary-button" onClick={start}>
                     {won ? 'Park it again' : 'Try again'}
                     <Arrow />
                 </button>
+                {leave && <button className="text-button" onClick={leave}>{returnLabel}</button>}
                 <span className="result-shortcut">
                     Or press <kbd>R</kbd> to restart
                 </span>
@@ -234,7 +244,7 @@ function Overlay({ state, game, retry }: { state: GameSession; game: ParkingGame
     );
 }
 
-function Hud({ game, retry, onBuilder, testing }: { game: ParkingGame; retry: () => void; onBuilder: () => void; testing: boolean }) {
+function Hud({ game, retry, onBuilder, onCampaign, testing, levelNumber, bestScore, onNext }: { game: ParkingGame; retry: () => void; onBuilder: () => void; onCampaign: () => void; testing: boolean; levelNumber: number; bestScore?: number; onNext?: () => void }) {
     const state = useSyncExternalStore(game.subscribe, game.getSnapshot);
     const active = !['loading', 'error'].includes(state.phase);
     const playing = state.phase === 'playing';
@@ -250,11 +260,11 @@ function Hud({ game, retry, onBuilder, testing }: { game: ParkingGame; retry: ()
                     </span>
                 </div>
                 <div className="level-label">
-                    <span className="eyebrow">{testing ? 'TEST DRIVE' : 'LEVEL 01'}</span>
+                    <span className="eyebrow">{testing ? 'TEST DRIVE' : `LEVEL ${String(levelNumber).padStart(2, '0')}`}</span>
                     <strong>{game.level.name}</strong>
                 </div>
                 <div className="session-actions">
-                    <button className="builder-entry" onClick={onBuilder}>{testing ? 'Back to builder' : 'Map builder'}</button>
+                    {!['paused', 'won', 'lost', 'error'].includes(state.phase) && <button className="builder-entry" onClick={testing ? onBuilder : onCampaign}>{testing ? 'Back to builder' : 'Level select'}</button>}
                     <span className="prototype-tag">DRIVING CLUB</span>
                     {active && (
                         <>
@@ -355,7 +365,7 @@ function Hud({ game, retry, onBuilder, testing }: { game: ParkingGame; retry: ()
                         <div className="level-footer">
                             <span className="eyebrow">PRECISION OVER SPEED</span>
                             <span>
-                                01 <i /> {game.level.name.toUpperCase()}
+                                {testing ? 'TEST' : String(levelNumber).padStart(2, '0')} <i /> {game.level.name.toUpperCase()}
                             </span>
                         </div>
                         {state.phase !== 'ready' && (
@@ -397,7 +407,7 @@ function Hud({ game, retry, onBuilder, testing }: { game: ParkingGame; retry: ()
                     )}
                 </>
             )}
-            <Overlay state={state} game={game} retry={retry} />
+            <Overlay state={state} game={game} retry={retry} onBuilder={testing ? onBuilder : undefined} onCampaign={testing ? undefined : onCampaign} bestScore={bestScore} onNext={testing ? undefined : onNext} />
         </div>
     );
 }
@@ -417,7 +427,13 @@ class SceneBoundary extends Component<{ game: ParkingGame; children: ReactNode }
 }
 
 export default function App() {
-    const [mode, setMode] = useState<'game' | 'builder' | 'test'>('game');
+    const [mode, setMode] = useState<'home' | 'campaign' | 'game' | 'builder' | 'test'>('home');
+    const [selectedLevel, setSelectedLevel] = useState(0);
+    const [builderOpened, setBuilderOpened] = useState(false);
+    const [saved] = useState(readProgress);
+    const [progress, setProgress] = useState(saved.progress);
+    const progressRef = useRef(progress);
+    const [storageNotice, setStorageNotice] = useState(saved.notice);
     const [game, setGame] = useState(() => new ParkingGame(COURTYARD));
     const [sceneRevision, setSceneRevision] = useState(0);
     const retry = useCallback(() => {
@@ -425,19 +441,38 @@ export default function App() {
         setSceneRevision((revision) => revision + 1);
     }, [game]);
     useEffect(() => {
-        if (mode === 'builder') return;
+        if (mode !== 'game' && mode !== 'test') return;
         const timeout = window.setTimeout(() => {
             if (game.session.phase === 'loading')
                 game.fail('The level took too long to load. Check your connection and WebGL support, then retry.');
         }, 25000);
         return () => window.clearTimeout(timeout);
     }, [game, mode, sceneRevision]);
+    useEffect(() => {
+        if (mode !== 'game') return;
+        const record = () => {
+            const state = game.getSnapshot();
+            if (state.phase !== 'won') return;
+            const next = recordCompletion(progressRef.current, CAMPAIGN[selectedLevel], state.score);
+            if (next === progressRef.current) return;
+            progressRef.current = next;
+            setProgress(next);
+            try { saveProgress(next); setStorageNotice(''); }
+            catch { setStorageNotice('Local saving is unavailable. Your records will last only this session.'); }
+        };
+        record();
+        return game.subscribe(record);
+    }, [game, mode, selectedLevel]);
     const enterBuilder = () => {
         game.pause();
+        setBuilderOpened(true);
         setMode('builder');
     };
-    const playCourtyard = () => {
-        setGame(new ParkingGame(COURTYARD));
+    const openHome = () => { game.pause(); setMode('home'); };
+    const openCampaign = () => { game.pause(); setMode('campaign'); };
+    const playLevel = (index: number) => {
+        setSelectedLevel(index);
+        setGame(new ParkingGame(resolveMap(structuredClone(CAMPAIGN[index].map))));
         setSceneRevision((revision) => revision + 1);
         setMode('game');
     };
@@ -446,18 +481,21 @@ export default function App() {
         setSceneRevision((revision) => revision + 1);
         setMode('test');
     };
+    const inGame = mode === 'game' || mode === 'test';
+    const record = levelRecord(progress, CAMPAIGN[selectedLevel]);
     return <>
-        <main className="game-shell" hidden={mode === 'builder'}>
+        <main className="game-shell" hidden={!inGame}>
             {/* Keep the graphics/physics owner alive while React replaces level entities.
                 Child materials must clean up before the graphics device is destroyed. */}
             <Application usePhysics graphicsDeviceOptions={{ antialias: true, alpha: false }}>
                 <SceneBoundary key={sceneRevision} game={game}>
-                    {mode !== 'builder' && <GameScene game={game} />}
+                    {inGame && <GameScene game={game} />}
                 </SceneBoundary>
             </Application>
-            {mode !== 'builder' && <Hud game={game} retry={retry} onBuilder={enterBuilder} testing={mode === 'test'} />}
+            {inGame && <Hud game={game} retry={retry} onBuilder={enterBuilder} onCampaign={openCampaign} testing={mode === 'test'} levelNumber={selectedLevel + 1} bestScore={record?.bestScore} onNext={selectedLevel + 1 < CAMPAIGN.length ? () => playLevel(selectedLevel + 1) : undefined} />}
             <div className="mobile-notice">Best played with a keyboard and mouse.</div>
         </main>
-        {mode !== 'game' && <MapBuilder hidden={mode === 'test'} onExit={playCourtyard} onTestDrive={testDrive} />}
+        {(mode === 'home' || mode === 'campaign') && <GameMenu screen={mode} progress={progress} selected={selectedLevel} notice={storageNotice} onCampaign={openCampaign} onHome={openHome} onBuilder={enterBuilder} onSelect={setSelectedLevel} onPlay={() => playLevel(selectedLevel)} />}
+        {builderOpened && <MapBuilder hidden={mode !== 'builder'} onExit={openHome} onTestDrive={testDrive} />}
     </>;
 }

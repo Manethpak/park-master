@@ -1,4 +1,4 @@
-import type { AssetDefinition } from './types.ts';
+import type { AssetDefinition, PlayerVehicle } from './types.ts';
 
 // Vertex bounds measured with the project's offline GLB inspector. Facing is +Z.
 export const ASSETS: Record<string, AssetDefinition> = {
@@ -118,3 +118,10 @@ export function assetUrl(definition: AssetDefinition) {
 
 export const CAR_WIDTH = ASSETS.sedan.dimensions[0] * ASSETS.sedan.scale;
 export const CAR_LENGTH = 4.2;
+
+export function vehicleGeometry(vehicle: PlayerVehicle = 'sedan') {
+    const asset = ASSETS[vehicle];
+    return { width: asset.dimensions[0] * asset.scale, height: asset.dimensions[1] * asset.scale,
+        length: asset.dimensions[2] * asset.scale, wheelbase: (vehicle === 'taxi' ? 1.52 : 1.32) * asset.scale,
+        wheelRadius: 0.3 * asset.scale };
+}

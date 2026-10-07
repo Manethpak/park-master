@@ -5,7 +5,7 @@ import { PROJECTION_ORTHOGRAPHIC, Script as EngineScript, TONEMAP_NEUTRAL } from
 import type { Asset, Entity as PcEntity } from 'playcanvas';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { ASSETS, assetUrl, CAR_LENGTH, CAR_WIDTH } from './assets.ts';
+import { ASSETS, assetUrl, vehicleGeometry } from './assets.ts';
 import { ParkingRuntime } from './runtime.ts';
 import type { ResetBody } from './runtime.ts';
 import type { ParkingGame } from './session.ts';
@@ -148,7 +148,12 @@ function BayMarking({ bay, id, target = false, wheelStop = true }: { bay: Parkin
 }
 
 function LevelGeometry({ level }: { level: LevelDefinition }) {
+    const zone = level.playableZone;
     return <>
+        {zone && [-1, 1].flatMap((side) => [
+            <SolidBox key={`x${side}`} name={`zone-boundary-x${side}`} position={[zone.x + side * (zone.width / 2 + 0.2), 0.6, zone.z]} size={[0.4, 1.2, zone.length + 0.8]} color="#dfd3ab" solid />,
+            <SolidBox key={`z${side}`} name={`zone-boundary-z${side}`} position={[zone.x, 0.6, zone.z + side * (zone.length / 2 + 0.2)]} size={[zone.width, 1.2, 0.4]} color="#dfd3ab" solid />
+        ])}
         {level.surfaces?.map((surface) => <SolidBox key={surface.id} name={surface.id} position={surface.position} size={surface.size} color={surface.color} solid={surface.solid} heading={surface.heading} />)}
         {level.parkingBays?.map((bay) => <BayMarking key={bay.id} bay={bay} id={bay.id} wheelStop={bay.wheelStop} />)}
         <BayMarking bay={level.bay} id="parking-target" target />
@@ -180,7 +185,8 @@ function LoadedWorld({ assets, game }: { assets: LoadedAssets; game: ParkingGame
     const camera = useRef<PcEntity>(null);
     const [bodies] = useState(() => new Map<string, ResetBody>());
     const level = game.level;
-    const carHeight = ASSETS.sedan.dimensions[1] * ASSETS.sedan.scale;
+    const vehicle = vehicleGeometry(level.playerVehicle);
+    const carHeight = vehicle.height;
     const spawn = useMemo<Triple>(
         () => [level.spawn.position[0], level.spawn.position[1] + carHeight / 2, level.spawn.position[2]],
         [carHeight, level]
@@ -222,7 +228,7 @@ function LoadedWorld({ assets, game }: { assets: LoadedAssets; game: ParkingGame
                 <WorldObject key={object.id} object={object} assets={assets} bodies={bodies} />
             ))}
             <Entity name="player" ref={registerPlayer} position={spawn} rotation={[0, level.spawn.heading, 0]}>
-                <Collision type="box" halfExtents={[CAR_WIDTH / 2, carHeight / 2, CAR_LENGTH / 2]} />
+                <Collision type="box" halfExtents={[vehicle.width / 2, carHeight / 2, vehicle.length / 2]} />
                 <RigidBody
                     type="dynamic"
                     mass={1000}
@@ -233,7 +239,7 @@ function LoadedWorld({ assets, game }: { assets: LoadedAssets; game: ParkingGame
                     linearDamping={0}
                     angularDamping={0}
                 />
-                <Model id="sedan" assets={assets} baseY={-carHeight / 2} />
+                <Model id={level.playerVehicle ?? 'sedan'} assets={assets} baseY={-carHeight / 2} />
             </Entity>
             <Simulation game={game} player={player} camera={camera} bodies={bodies} />
         </>

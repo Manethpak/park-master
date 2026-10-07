@@ -1,7 +1,7 @@
 import { Color, Vec3 } from 'playcanvas';
 import type { Application, ContactResult, Entity } from 'playcanvas';
 
-import { ASSETS, CAR_LENGTH, CAR_WIDTH } from './assets.ts';
+import { vehicleGeometry } from './assets.ts';
 import { DRIVING, stepSpeed, stepSteering, steeringYawRate } from './driving.ts';
 import { mouseSteering } from './rules.ts';
 import type { ParkingGame } from './session.ts';
@@ -166,6 +166,7 @@ export class ParkingRuntime {
         const actualSpeed = Math.hypot(body.linearVelocity.x, body.linearVelocity.z);
         const longitudinal = body.linearVelocity.x * fx + body.linearVelocity.z * fz;
         if (phase === 'playing' && dt > 0) {
+            const vehicle = vehicleGeometry(this.game.level.playerVehicle);
             const forward = this.keys.has('KeyW') || this.keys.has('ArrowUp');
             const reverse = this.keys.has('KeyS') || this.keys.has('ArrowDown');
             const throttle = Number(forward) - Number(reverse);
@@ -177,9 +178,9 @@ export class ParkingRuntime {
                 0,
                 fz * speed + (body.linearVelocity.z - fz * longitudinal) * grip
             );
-            const yawRate = steeringYawRate(speed, this.steering, 1.32 * ASSETS.sedan.scale);
+            const yawRate = steeringYawRate(speed, this.steering, vehicle.wheelbase);
             body.angularVelocity = this.angular.set(0, yawRate, 0);
-            this.wheelRoll += (((speed * dt) / (0.3 * ASSETS.sedan.scale)) * 180) / Math.PI;
+            this.wheelRoll += (((speed * dt) / vehicle.wheelRadius) * 180) / Math.PI;
             this.wheels.forEach((wheel, index) =>
                 wheel.setLocalEulerAngles(this.wheelRoll % 360, index < 2 ? this.steering : 0, 0)
             );
@@ -189,8 +190,8 @@ export class ParkingRuntime {
                     x: position.x,
                     z: position.z,
                     heading,
-                    width: CAR_WIDTH,
-                    length: CAR_LENGTH,
+                    width: vehicle.width,
+                    length: vehicle.length,
                     speed: actualSpeed
                 },
                 this.steering / DRIVING.maximumSteering
@@ -214,7 +215,9 @@ export class ParkingRuntime {
             __parkTest: {
                 snapshot: () => ({
                     ...this.game.session,
-                    level: { id: this.game.level.id, name: this.game.level.name, spawn: this.game.level.spawn, bay: this.game.level.bay },
+                    level: { id: this.game.level.id, name: this.game.level.name, spawn: this.game.level.spawn, bay: this.game.level.bay, playerVehicle: this.game.level.playerVehicle ?? 'sedan', playableZone: this.game.level.playableZone },
+                    vehicle: vehicleGeometry(this.game.level.playerVehicle),
+                    carCollider: this.player.collision?.halfExtents.toArray().map((extent) => extent * 2),
                     roads: this.game.level.objects.filter((object) => object.asset.startsWith('road')).map((object) => {
                         const entity = this.app.root.findByName(object.id) as Entity;
                         const bounds = entity.findComponents('render').flatMap((render) => render.meshInstances.map((mesh) => mesh.aabb));
@@ -238,13 +241,16 @@ export class ParkingRuntime {
                 teleport: (x: number, z: number, heading: number) => {
                     const body = this.player.rigidbody;
                     if (!body) return;
-                    body.teleport(x, (ASSETS.sedan.dimensions[1] * ASSETS.sedan.scale) / 2, z, 0, heading, 0);
+                    body.teleport(x, vehicleGeometry(this.game.level.playerVehicle).height / 2, z, 0, heading, 0);
                     body.linearVelocity = Vec3.ZERO;
                     body.angularVelocity = Vec3.ZERO;
                     this.game.contacts.reset();
                 },
                 setRemaining: (seconds: number) => {
                     this.game.session.remaining = seconds;
+                },
+                addImpacts: (count: number) => {
+                    for (let index = 0; index < Math.min(100, Math.max(0, Math.floor(count))); index++) this.game.impact(`e2e-impact-${index}`);
                 },
                 app: this.app
             }
