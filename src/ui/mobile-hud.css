@@ -1,0 +1,34 @@
+.mobile-hud { position: absolute; inset: 0; pointer-events: none; }
+.mobile-hud button, .mobile-briefing, .mobile-hud .result-card { pointer-events: auto; }
+.mobile-game-header { position: absolute; top: max(10px, env(safe-area-inset-top)); left: max(12px, env(safe-area-inset-left)); right: max(12px, env(safe-area-inset-right)); display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.mobile-game-status { display: flex; gap: 16px; padding: 8px 12px; border: 1px solid #9daa8e; border-radius: 12px; background: #f6f4e9eb; }
+.mobile-game-status > div { display: flex; flex-direction: column; gap: 2px; }
+.mobile-game-status span { font-size: 9px; letter-spacing: 1px; color: #586a4a; }
+.mobile-game-status strong { font: 750 22px 'Manrope', sans-serif; font-variant-numeric: tabular-nums; }
+.mobile-game-status.urgent > div:first-child strong { color: #b35e45; }
+.mobile-game-actions { display: flex; gap: 8px; }
+.mobile-game-actions button { display: grid; place-items: center; width: 44px; height: 44px; border: 1px solid #9daa8e; border-bottom: 3px solid #8c9b7b; border-radius: 10px; background: var(--paper); color: var(--ink); font-size: 23px; }
+.mobile-impact-toast { position: absolute; top: calc(82px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); padding: 9px 14px; background: #f4ded0; color: #8c482e; border: 1px solid #bd8e70; border-radius: 8px; font-size: 13px; }
+.mobile-impact-toast strong { margin-left: 10px; }
+.mobile-overlay { position: absolute; inset: 0; display: grid; grid-template-columns: minmax(0, 1fr); place-items: center; padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); background: #253c332b; backdrop-filter: blur(4px); overflow: auto; pointer-events: auto; }
+.mobile-briefing { width: min(360px, 100%); max-height: 100%; overflow: auto; border: 1px solid #9daa8e; border-radius: 14px; padding: 16px; background: var(--paper); }
+.mobile-briefing h1 { font: 750 26px/1.15 'Manrope', sans-serif; letter-spacing: -.7px; margin: 0 0 8px; }
+.mobile-briefing p { font-size: 13px; line-height: 1.5; margin: 8px 0; }
+.mobile-briefing .mobile-level-meta { color: #586a4a; font-size: 12px; }
+.mobile-hud .game-parking-meter { bottom: calc(104px + env(safe-area-inset-bottom)); }
+.mobile-hud .result-card { width: min(390px, 100%); max-width: 100%; max-height: 100%; overflow: auto; padding: 16px; }
+.mobile-hud .result-card h2 { font-size: 25px; margin: 0 0 10px; }
+.mobile-hud .result-card .game-stars { font-size: 28px; margin: 8px 0; }
+.mobile-hud .result-stats { grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; padding: 12px 0; }
+.mobile-hud .result-stats > div:first-child { grid-column: 1 / -1; }
+.mobile-hud .result-stats > div { gap: 3px; }
+.mobile-hud .result-stats span { font-size: 10px; letter-spacing: .6px; }
+.mobile-hud .result-stats > div:first-child strong { font-size: 40px; }
+.mobile-hud .result-stats strong { font-size: 22px; }
+.mobile-hud .result-actions { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); position: sticky; bottom: -16px; padding-block: 12px 16px; background: var(--paper); margin-top: 8px; }
+.mobile-hud .result-actions > .primary-button { grid-column: 1 / -1; }
+.mobile-hud .result-actions > .text-button:last-child:nth-child(2) { grid-column: 1 / -1; }
+.mobile-hud .result-actions > button { min-height: 48px; }
+@media (orientation: landscape) {
+    .mobile-hud .game-parking-meter { left: max(12px, env(safe-area-inset-left)); top: calc(82px + env(safe-area-inset-top)); bottom: auto; transform: none; width: min(280px, calc(100% - 24px)); }
+}

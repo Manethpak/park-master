@@ -27,6 +27,8 @@
 .mode-button small { display: block; margin-top: 5px; font-size: 10px; color: #506348; }
 .mode-button > b { margin-left: auto; font-size: 24px; }
 .menu-showcase { position: relative; height: 420px; display: grid; place-items: center; min-width: 0; }
+.menu-showcase-owner { position: fixed; right: 5vw; top: 50%; transform: translateY(-50%); width: 43vw; height: 420px; pointer-events: none; }
+.menu-showcase-owner[hidden] { display: none; }
 .car-showcase { position: absolute; inset: 0; overflow: hidden; border-radius: 12px; pointer-events: none; }
 .car-showcase > .pc-app { position: absolute; inset: 0; }
 .car-showcase canvas { display: block; width: 100%; height: 100%; }
@@ -41,7 +43,8 @@
 .campaign-heading { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
 .campaign-heading h1 { font: 800 25px 'Manrope', sans-serif; letter-spacing: -.5px; margin: 10px 0; }
 .campaign-heading p { font-size: 10px; color: #b3c0a6; }
-.menu-back { background: transparent; border: 1px solid #9cad8650; color: #d4dfc0; padding: 9px 13px; border-radius: 5px; font-size: 10px; }
+.menu-back { background: #344c40; border: 1px solid #9cad86; border-bottom: 3px solid #142b22; color: #f4efd4; padding: 11px 15px; min-height: 48px; border-radius: 10px; font-size: 13px; font-weight: 650; }
+.menu-back:active { background: #496039; }
 .campaign-layout { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(260px, .85fr) minmax(390px, 1.5fr); gap: 25px; margin-top: 18px; }
 .campaign-levels { overflow: auto; padding: 5px 8px 10px 5px; scrollbar-width: thin; }
 .level-tile { display: flex; align-items: center; gap: 14px; width: 100%; padding: 18px 14px; background: #1d332d; color: var(--menu-ink); border: 2px solid #687f5d66; border-radius: 8px; text-align: left; margin: 0 0 12px; box-shadow: 0 4px 0 #12251e; }
@@ -51,8 +54,6 @@
 .level-tile-info { flex: 1; min-width: 0; }
 .level-tile strong { display: block; font: 750 13px 'Manrope', sans-serif; overflow-wrap: anywhere; }
 .level-tile small { display: block; font-size: 8px; letter-spacing: .8px; color: #bdc9ae; margin-top: 6px; }
-.game-stars { display: inline-flex; gap: 5px; font-size: 22px; color: #8c998370; line-height: 1.2; white-space: nowrap; }
-.game-stars .earned { color: #e6bf57; text-shadow: 0 2px 0 #88632b; }
 .level-tile .game-stars { font-size: 17px; gap: 2px; }
 .more-levels { display: flex; gap: 14px; align-items: center; justify-content: center; padding: 28px 12px; color: #aabc9e; border: 1px dashed #91a27740; border-radius: 8px; }
 .more-levels > span { font-size: 27px; opacity: .5; }
@@ -71,7 +72,7 @@
 .briefing-details dd { font: 800 26px 'Manrope', sans-serif; margin: 4px 0 0; font-variant-numeric: tabular-nums; }
 .briefing-details dd span { font: 650 8px 'DM Sans', sans-serif; color: #6d7f58; }
 .star-goals { grid-column: 1 / -1; font-size: 9px; color: #65744a; display: flex; justify-content: space-between; gap: 8px; margin: 3px 0; }
-.menu-launch { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; background: #2c4534; color: #eef0d3; border: 0; border-radius: 5px; padding: 14px 18px; font: 800 14px 'Manrope', sans-serif; letter-spacing: 1px; box-shadow: 0 4px 0 #132b20; margin-top: 4px; }
+.menu-launch { flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; background: #2c4534; color: #eef0d3; border: 0; border-radius: 8px; padding: 14px 18px; min-height: 48px; font: 800 14px 'Manrope', sans-serif; letter-spacing: 1px; box-shadow: 0 4px 0 #132b20; margin: 0 22px 20px; }
 .menu-launch:hover { background: #496039; }
 .menu-launch:disabled { background: #747c69; box-shadow: none; cursor: not-allowed; }
 .continue-home { width: 100%; text-align: left; margin: 0 0 8px; }
@@ -90,9 +91,8 @@
 .briefing-lock { padding: 10px; border-left: 3px solid #a08739; background: #dedabc; }
 .menu-launch:focus-visible { outline-color: #566f35 !important; }
 .menu-save-notice { position: absolute; bottom: 58px; left: 5vw; right: 5vw; padding: 9px 12px; background: #453e28; border: 1px solid #cbb96d; color: #eee6bc; font-size: 10px; border-radius: 4px; }
-.result-card .game-stars { display: flex; justify-content: center; margin: 16px 0 4px; font-size: 39px; }
-.result-card .campaign-best { margin-top: 10px; font-size: 10px; color: #60773e; }
 @keyframes car-arrive { from { opacity: 0; transform: translate(35px, -18px); } to { opacity: 1; transform: translate(0, 0); } }
+@media (max-height: 700px) { .menu-showcase-owner { height: 320px; } }
 @media (max-width: 900px) { .game-menu { padding-inline: 24px; } .title-screen { gap: 20px; grid-template-columns: minmax(310px, 1fr) .9fr; } .menu-showcase { height: 330px; } .showcase-sticker { font-size: 12px; } .campaign-layout { gap: 15px; grid-template-columns: minmax(240px, .85fr) minmax(350px, 1.5fr); } .level-tile { gap: 8px; padding: 13px 9px; } .level-number { min-width: 34px; font-size: 23px; } .briefing-details { padding: 16px; } }
 @media (max-height: 700px) { .game-menu { padding-block: 20px; } .title-screen { padding-block: 10px; } .title-actions h1 { font-size: 64px; margin-block: 12px 16px; } .title-tagline { margin-bottom: 16px; } .mode-button { min-height: 70px; padding-block: 12px; } .menu-showcase { height: 320px; } .campaign-screen { padding-block: 10px 16px; } .campaign-layout { margin-top: 10px; } .level-preview { max-height: 180px; min-height: 130px; } .briefing-details { padding-block: 12px; gap: 5px 10px; } .briefing-details dl { padding-block: 8px; } }
 @media (max-width: 650px) { .game-menu { padding: 20px; } .title-screen { grid-template-columns: 1fr; } .title-actions { margin: auto; width: 100%; max-width: 410px; } .menu-showcase { display: none; } .title-actions h1 { font-size: 68px; } .menu-logo { font-size: 12px; } .menu-total { font-size: 16px; } .menu-footer > span:last-child { display: none; } .campaign-heading { flex-wrap: wrap; gap: 7px; } .campaign-heading h1 { font-size: 20px; } .campaign-layout { grid-template-columns: 1fr; overflow: auto; } .campaign-levels { min-height: 130px; } .more-levels { display: none; } .level-briefing { overflow: visible; } .briefing-details h2 { font-size: 20px; } .briefing-details .game-stars { font-size: 21px; } }

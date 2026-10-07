@@ -31,7 +31,16 @@ export function checkParking(car: CarPose, bay: ParkingBay) {
     }
     const aligned = angleDifference(car.heading, bay.heading) <= 10;
     const stopped = Math.abs(car.speed) < 0.15;
-    return { contained, aligned, stopped, valid: contained && aligned && stopped };
+    // Separating-axis test: any footprint overlap can show guidance, never award a hold.
+    const dx = car.x - bay.x;
+    const dz = car.z - bay.z;
+    const overlapping = [theta, theta + Math.PI / 2, bayTheta, bayTheta + Math.PI / 2].every((axis) => {
+        const distance = Math.abs(dx * Math.cos(axis) - dz * Math.sin(axis));
+        const carRadius = Math.abs(Math.cos(theta - axis)) * car.width / 2 + Math.abs(Math.sin(theta - axis)) * car.length / 2;
+        const bayRadius = Math.abs(Math.cos(bayTheta - axis)) * bay.width / 2 + Math.abs(Math.sin(bayTheta - axis)) * bay.length / 2;
+        return distance < carRadius + bayRadius;
+    });
+    return { contained, aligned, stopped, overlapping, valid: contained && aligned && stopped };
 }
 
 export function advanceParkingHold(hold: number, valid: boolean, dt: number) {

@@ -11,11 +11,15 @@ pnpm install
 pnpm dev
 ```
 
-Open http://localhost:5173 in a browser with WebGL2 support. The main menu offers **Play campaign** or **Map builder**. Choose a campaign level, click **Start level**, then **Let’s park**. The 90-second countdown starts when the car first moves; waiting or steering while stationary keeps the initial time and score.
+Open http://localhost:5173 in a browser with WebGL2 support. The main menu offers **Play campaign** or **Map builder**. Choose a campaign level, click **Start level**, then **Start**. The 90-second countdown starts when the car first moves; waiting or steering while stationary keeps the initial time and score.
 
 ## Controls and rules
 
-At viewport widths of 1024px or less (or on devices with a coarse touch pointer), the game shows **Accelerate**, **Reverse**, **Stop**, and left/right steering buttons. Hold buttons to control the car; steering and a pedal can be held together. Releasing or cancelling a touch clears that input, and pause, restart, or focus loss clears all held controls. Mobile gameplay requires landscape: portrait shows a rotation prompt and pauses the attempt. Rotate back and choose **Back to driving** to resume. **Fullscreen** attempts a landscape orientation lock where supported; otherwise rotate the device manually. The map builder remains desktop-oriented.
+At viewport widths of 1024px or less (or on devices with a coarse touch pointer), the game shows **Accelerate**, **Reverse**, **Stop**, and left/right steering buttons. Hold buttons to control the car; steering and a pedal can be held together. Releasing or cancelling a touch clears that input, and pause, restart, or focus loss clears all held controls. Both portrait and landscape support play; rotating clears held inputs without pausing. Mobile driving tips appear once, then stay hidden after dismissal or starting. **Settings** pauses active play and contains **Help**, **Restart**, **Fullscreen**, and **Level select** (or **Back to builder** in a test drive). Help reopens tips; **Resume** returns to driving. Tip dismissal is saved locally when storage is available. Fullscreen optionally attempts a landscape orientation lock where supported, but is not required. Mobile gameplay shows only time/score, Settings and Pause, parking feedback, and touch controls—no logo or secondary navigation buttons. Opening the builder on mobile, including direct links, shows an **Open on desktop** notice instead of editing tools; existing drafts are preserved.
+
+`src/ui/GameMenu.tsx` chooses independent `MobileGameMenu` and `DesktopGameMenu` components using the same screen-size/touch detection as gameplay. Mobile owns its layout and styles in `mobile-menu.css`: compact header filter, two-column portrait / three-column landscape grids, and one-tap play with no map preview or separate launch panel. Unlocked tiles start the attempt once loading finishes; locked tiles remain visible but disabled. Desktop retains selection, map previews and a separate launch action. Campaign rules and records are shared, not duplicated.
+
+`src/ui/GameHud.tsx` similarly selects independent `MobileHud` and `DesktopHud` components. Mobile presentation lives in `mobile-hud.css`, with touch controls in `mobile-controls.css`; it does not render a desktop HUD and hide pieces with media queries. The wrapper shares the session subscription, input clearing, tips persistence and settings behavior. `GameSettings` provides the paused menu with keyboard focus containment and Escape-to-resume on both devices. Desktop retains its scoreboard, steering instruments, route briefing and keyboard controls.
 
 | Input    | Action                                                         |
 | -------- | -------------------------------------------------------------- |
@@ -30,22 +34,72 @@ Center the mouse to straighten the wheels. Full steering lock takes only 240 pix
 
 Park the whole car inside the highlighted bay, facing its arrow within 10 degrees, and remain below 0.15 m/s for one continuous second. The timer stops on success. Running out of time ends the attempt with zero points.
 
+A large parking meter appears in a fixed HUD position as soon as any part of the car's footprint overlaps the target bay: above the driving controls on desktop and portrait mobile, or in the upper-left HUD on landscape mobile to keep the centre clear. It stays steady while the car and camera move, guides containment, alignment, and braking, and fills only when all parking conditions are satisfied. Leaving the bay hides the meter and resets the hold. Mobile level tiles launch directly from a scrollable grid, and result popups keep replay and return actions accessible on small screens.
+
 The score is `max(0, round(1000 × remainingSeconds / timeLimit) − accumulatedImpactPoints)`. The courtyard uses a 90-second limit. By default, small objects (cones and boxes) cost 10 points per bump; hard obstacles (vehicles, signs, curbs, fences, and boundary barriers) cost 25 points per hit. Custom maps save their own time limit and penalties. A continuous contact costs one penalty; separating and hitting the same obstacle again costs another. Parked vehicles, signs, curbs, and fences are fixed. Cones and boxes can move and topple. Losing window focus pauses the game and clears held inputs.
 
 ## Implementation and tuning
 
 - `src/game/level.ts`: level definition, spawn, target bay, time limit, penalty, and model placement.
-- `src/game/assets.ts`: measured model bounds, uniform scales, pivot compensation, and asset URLs. The sedan is 4.2 metres long. Models face +Z; the camera follows at a fixed world orientation.
+- `src/game/assets.ts`: shared asset catalog with labels, builder categories, physics defaults, impact classes, measured model bounds, uniform scales, pivot compensation, and asset URLs. The sedan is 4.2 metres long. Models face +Z; the camera follows at a fixed world orientation.
 - `src/game/driving.ts`: forward/reverse speed caps, acceleration, braking, steering, and grip tuning.
 - `src/game/runtime.ts`: Engine update loop, input, actual rigid-body velocity, wheel animation, collision events, reset, and camera follow. Countdown time uses elapsed wall time and excludes pauses.
 - `src/game/session.ts` and `rules.ts`: gameplay state, parking geometry, scoring, and contact tracking. React subscribes to HUD snapshots rather than rendering every simulation frame.
 - `src/game/Scene.tsx`: React-owned scene entities, model loading, simple measured colliders, lighting, surfaces, and parking markings. PlayCanvas React loads the installed `sync-ammo` peer through `usePhysics`.
 
-The original models under `src/assets` are retained. Only the selected GLBs and each pack’s `Textures/colormap.png` are copied under `public/assets/kenney`; the relative texture paths must stay intact. No model compression decoder is needed for these assets. Missing resources show a retry screen, with a 25-second startup timeout for stalled initialization.
+`public/assets/kenney` holds the single canonical copy of catalogued GLBs, their preview PNGs, and each pack’s `Textures/colormap.png`; the relative texture paths must stay intact. The duplicate source library and excluded models were removed to reduce project size. Gameplay loads only the selected player vehicle and the distinct models used by the current map, not the entire catalog. No model compression decoder is needed for these assets. Missing required resources show a retry screen, with a 25-second startup timeout for stalled initialization.
 
-The supplied courtyard uses a player sedan. Custom maps can choose a sedan, SUV, or taxi. Moving traffic, community level discovery, and online scores are outside this version.
+The supplied courtyard uses a player sedan. Custom maps can choose a sedan, SUV, taxi, sports hatchback, sports sedan, van, or pickup. All seven are also available as parked obstacles in the builder. The sports hatchback is calibrated to 3.9 metres long; the van and pickup offer larger parking footprints. Moving traffic, community level discovery, and online scores are outside this version.
 
 Models are supplied Kenney assets: [Car Kit](https://kenney.nl/assets/car-kit), [City Kit (Roads)](https://kenney.nl/assets/city-kit-roads), and [City Kit (Suburban)](https://kenney.nl/assets/city-kit-suburban).
+
+### Onboarding unused objects
+
+The builder now includes House A, C, D, F, and G plus a Garden planter. Houses and the planter are fixed obstacles with the normal hard-impact penalty. Existing campaign maps are unchanged; choose these objects from the builder to use them in new maps. The original trees remain non-colliding decoration.
+
+Street furniture adds stop and street signs, a bare sign post, six streetlight variants, a traffic light, dumpster, and construction barrier, cone, fence, and light. These appear under **Props & barriers**. The construction cone moves and uses the small-impact penalty; the other additions are fixed hard-impact obstacles. Streetlights use narrow pole colliders rather than blocking the whole footprint of their overhead arms. Lights are decorative, with no signal cycling or additional illumination. Hanging/highway signs are also available with compound colliders; loose component parts are excluded from scope. `ASSET-IMPLEMENTATION.tmp.md` tracks all 124 retained models (implemented), the 61 excluded models, and validation results.
+
+All supplied suburban houses A–U are now available as fixed hard-impact obstacles. **Paths & driveways** contains five path variants and short/long driveways. These are non-colliding decorative overlays, not supporting floors or connected road tiles: place them on existing solid ground, and set Y in the inspector for raised surfaces. Paths use the suburban 6x scale; driveways use 8x for a 2.88-metre width. All eight remaining fences are now available with separate segment colliders: U-shaped enclosures open toward local -Z, while the low fence pair is open at both ends. Smaller fence interiors may still be too short to fit a car.
+
+The hanging sign post, hanging traffic light, and three highway signs use 8x scale for overhead clearance. Posts and elevated arms/panels have separate compound boxes rather than one solid box across the opening. Each object remains one fixed hard-impact obstacle. These assets do not add traffic rules or animated signals.
+
+The road palette includes crossings, bend/junction variants, road ends, driveway entrances, plaza/ground tiles, three large curves, a roundabout, split, wide-side variants, and a half straight. Tiles keep their measured size at 5x scale: large curves are 10 × 10 m, roundabouts 15 × 15 m, splits 5 × 10 m, and half straights 2.5 × 5 m. Supports and editor footprints match these sizes and rotate together. **Road snap** defaults to 5 m; choose 1.25 m for fine placement. Overlapping road footprints are rejected even at different grid anchors. Connectivity warnings compare measured lane endpoints on touching edges, including both split branches. Driveway curb cuts are not extra full-width lane ports; plaza/ground tiles have no lane ports. Flat tiles do not create invisible walls. Ramps and bridges are excluded.
+
+Nineteen rail-only models are available separately under **Props & barriers**. Place them on supporting ground alongside roads; they do not create a floor. Their static concave mesh colliders match the rails and openings rather than blocking the whole footprint. Rail models retain one hard-impact body, a fixed 5x scale, and no resizing. Side rails and half rails have different authored orientations from their ground counterparts; rotate them as needed when lining them up.
+
+The remaining car-kit additions are parked ambulance, police car, fire engine, garbage truck, delivery truck/flatbed, luxury SUV and flatbed pickup, plus a movable low traffic cone. Vehicles use hard-impact penalties; the cone uses the small-impact penalty. These additions are not new player vehicles; the existing seven drivable choices are unchanged. Rail-only models use `colliderMesh` in the catalog; this is limited to static assets with one imported render mesh, at a fixed scale.
+
+For ordinary objects from the supplied packs, keep their files in the canonical public directory and register a single entry in `src/game/assets.ts`:
+
+1. Place the selected GLB under `public/assets/kenney/<pack>/` with its matching `preview/<model>.png` and pack texture. Do not keep a second source copy in the project.
+2. Measure it with the offline inspector:
+
+   ```sh
+    node .agents/skills/inspect-glb/scripts/inspect.mjs public/assets/kenney/city-kit-suburban/building-type-h.glb
+   ```
+
+   Use `dims`, `center`, and `groundOffset` only when `boundsSource` is `vertices`. Skinned, morphed, compressed, or incompletely measured objects need additional support and should not be blindly registered.
+
+3. Add a stable, unique catalog ID. For example, after inspecting House H, fill in its measured values:
+
+   ```ts
+   houseH: {
+       label: 'House H', category: 'Buildings', body: 'static',
+       pack: 'city-kit-suburban', file: 'building-type-h.glb',
+       dimensions: [/* measured X, Y, Z */],
+       center: [/* measured X, Y, Z */],
+       groundOffset: 0, // replace with the inspected value
+       scale: 6, yaw: 0
+   }
+   ```
+
+    Categories are `Vehicles`, `Buildings`, `Nature`, `Paths & driveways`, `Props & barriers`, and `Roads`. Omit `body` for non-colliding scenery; use `static` for solid obstacles or `dynamic` plus a positive `mass` for movable props. Impacts default to `hard`; set `impactKind: 'small'` for small props. Match the pack's existing scale where appropriate (suburban scenery generally uses 6); otherwise choose a deliberate metre-based size. `groundOffset` is unscaled and defaults to zero. Yaw is the visual correction relative to the object's authored heading, not its placement rotation.
+
+4. Preserve the model's relative `Textures/colormap.png` reference in the same public pack directory. Preview URLs and categories are derived from the catalog; no extra label, preview import, placement, or scoring registration is needed. No source-to-public sync step is required.
+
+5. Add E2E assertions in `tests/game.spec.ts` for palette/preview availability, placement, export/import, actual mesh grounding and footprint, and collision or reset behavior as appropriate. Run `pnpm test:e2e` (set `CHROME_PATH` when Chrome isn't at `/usr/bin/google-chrome`). Commit the catalog entry, copied public files, and tests together.
+
+**Limits:** ordinary solid objects use one bounding-box collider, with an optional calibrated `collider` override for dimensions and centre relative to the grounded, pivot-compensated visual. Streetlights use this for their poles. `colliderBoxes` defines multiple boxes in that same coordinate space for fences and overhead structures, attached to one compound collision component and rigid body on the semantic root. Objects with openings must leave those openings clear rather than use a full box. A visual yaw correction of 90°/270° also needs collider/editor footprint support for swapped X/Z dimensions. New road tiles additionally require `RoadAsset` registration in `src/game/types.ts` and lane ports in `ROAD_ASSETS` in `src/game/maps.ts`, with 5-metre grid calibration. Adding a parked vehicle does not make it drivable; new player vehicles also need wheel, handling, parking geometry, and picker support. Custom uploads and automatic in-app asset onboarding are not implemented.
 
 ## Campaign and records
 
@@ -64,7 +118,7 @@ Stars use the final score of a successful attempt:
 
 Successful campaign attempts save the highest score for each level in this browser, under `park-master.campaign-progress.v1`. Lower-scoring replays and timeouts never reduce records. Stars on level selection reflect the best score; result-screen stars reflect the current attempt. Progress is local, not an online leaderboard. If saving is unavailable, the menu explains that records last only for the session. Changing a level's gameplay content invalidates its old record so scores from different layouts are not mixed; changing difficulty, challenge label, or campaign order does not invalidate scores. Existing v1 records remain compatible.
 
-**Level select** is available during campaign play and inside pause, result, and error overlays. Completing a level offers **Next level** when a later unlocked authored level exists; locked tiers cannot be bypassed. **Map builder** is an independent sandbox; its drafts and Test drive scores never create campaign levels or records. Builder **Main menu** returns to mode selection without deleting the draft. JSON export/import remains available for sharing files; a community library is not implemented yet.
+**Level select** is available in Settings during campaign play, in the paused menu, and inside result and error overlays. Completing a level offers **Next level** when a later unlocked authored level exists; locked tiers cannot be bypassed. **Map builder** is an independent sandbox; its drafts and Test drive scores never create campaign levels or records. Builder **Main menu** returns to mode selection without deleting the draft. JSON export/import remains available for sharing files; a community library is not implemented yet.
 
 ### Adding authored campaign levels
 
@@ -95,9 +149,15 @@ pnpm start       # Preview the production build
 
 The production output is a static site in `dist/`, including the model palette textures. The Engine and physics library produce large bundle chunks; their build size warnings are expected for this prototype.
 
+### Navigation and hosting
+
+Screen navigation uses React Router with clean URLs: `/` (main menu), `/campaign` (level selection), `/play/:levelId` (an authored campaign level), `/builder`, and `/builder/test`. Browser Back/Forward works between screens. Opening or refreshing a campaign URL starts a fresh attempt at the briefing; pause and result overlays do not create history entries. Unknown or locked level IDs return to level selection, unknown routes return home, and opening a test-drive URL without an in-memory test map returns to the builder's saved draft. Builder state stays mounted across screen navigation; test drives use a copy of the draft and never save campaign records.
+
+Configure the production host to serve `index.html` for non-file app paths (SPA fallback), while serving `/assets/` files normally. Without this fallback, refreshing or opening a deep link can return a server 404. Vite's development and preview servers already support this behavior. The router respects Vite's `BASE_URL` when deploying under a subdirectory.
+
 ## Map builder
 
-Choose **Map builder** from the main menu to open the level workshop. Start from the supplied courtyard or choose **New map**. The builder uses a top-down drafting view; **Test drive** opens the same 3D scene and physics used by the game.
+Choose **Map builder** from the main menu to open the level workshop. **Reset map** starts an empty lot: no roads, props, or extra parking bays, only the base ground/floor, required player spawn and target bay. **Load courtyard template** replaces the draft with the supplied courtyard. Both actions clear selection, placement previews, editor locks/hiding and reset the canvas view; both autosave and support **Undo** to recover the previous map. The builder uses a top-down drafting view; **Test drive** opens the same 3D scene and physics used by the game.
 
 - Pick a road, prop, ground surface, spawn, or bay from the palette, then click the grid to place it. Road centres snap to a fixed 5-metre grid and rotate in 90-degree steps. Prop snapping defaults to 0.25 metres and can be changed or disabled.
 - Target bays and newly placed parking bays have no raised wheel stop, leaving approaches clear for parallel parking. Decorative parking bays can opt in using **Wheel stop** in the inspector; existing authored stops are preserved.
@@ -107,7 +167,8 @@ Choose **Map builder** from the main menu to open the level workshop. Start from
 - Drag the selected item's circular handle to rotate around its centre. Roads remain locked to quarter turns; other items snap to 15° (1° with snapping off). Corner handles resize surfaces, bays, and the playable zone around the opposite corner. Props keep their default model size and cannot be stretched. A completed gesture is one undo step; Escape cancels without saving it.
 - **Lock in editor** prevents edits; **Hide in editor only** removes an item from the drafting view, not from Test drive or exported files. The ground starts locked. The expandable **Scene list** provides focus, lock, and hide controls. These visibility and lock settings last for the current editor session and reset on a new map or import.
 - Press **R** to rotate, **Delete** to remove, arrow keys to nudge, or **Ctrl/Cmd + D** to duplicate. Use **Ctrl/Cmd + Z** to undo and **Ctrl/Cmd + Shift + Z** to redo. New maps and imports are undoable too. Spawn and target are unique markers; move them rather than deleting them.
-- **Alt + drag** or middle drag pans the map. Right-click opens object actions. Use the zoom buttons or **Fit map** to frame it. Increasing X moves right; increasing Z moves down in the drafting view. A heading of zero faces +Z, and a positive heading turns toward +X.
+- **Alt + drag** or middle drag pans the map. Right-click opens object actions. Scroll the mouse wheel or use a trackpad scroll/pinch over the canvas to zoom around the pointer; the zoom buttons and **Fit map** also remain available. Increasing X moves right; increasing Z moves down in the drafting view. A heading of zero faces +Z, and a positive heading turns toward +X.
+- Right-click selects the item under the pointer and offers **Deselect**, **Bring forward**, **Send backward**, **Lock / Unlock**, **Hide in editor**, and **Delete**. Bring forward / Send backward move one layer; the scene list shows frontmost items first. Ordering is saved as optional `editorOrder` metadata in drafts and JSON, supports undo/redo, and changes only the drafting canvas—not physical height, gameplay rendering, collisions, or campaign records. Locked items cannot be reordered or deleted. Hidden items can be restored from the inspector or scene list. Duplicate, duplicate-and-place, and rotation remain available through the inspector, handles, toolbar, and existing shortcuts.
 - The left sidebar has **Assets** and **Map settings** tabs. Assets contains placement tools and the scene list; Map settings contains the level ID, time limit (1–3600 whole seconds), small/hard impact penalties (0–1000 whole points each), grid origin, player vehicle, playable zone, and level validation. Settings remain available while an element is selected; switching tabs preserves the selection. The right sidebar is only for element inspection. Use Left/Right arrow keys, Home, or End on the tabs to switch panels. Zero disables a penalty. Fields save on Enter or blur; clearing a field temporarily is allowed, but leaving it blank restores the saved value. All settings are included in local drafts and JSON exports. Road cell size is read-only at 5 metres to match the assets.
 - Choose **Player vehicle** in map settings. Each model uses its calibrated body dimensions, wheelbase, and parking footprint. If the target is too small, resize it before choosing the larger car; the builder never silently enlarges the bay.
 - **Add playable zone** creates a rectangular boundary. Move it and resize its corners, or enter exact dimensions in the inspector. Test drive adds visible solid perimeter barriers, with normal collision penalties. The full spawn footprint and target bay must fit inside before Test drive is enabled. The validation panel links relevant issues to their items; scenery outside the zone is advisory. Old maps without a zone retain their existing behavior.
@@ -118,6 +179,6 @@ The supplied level lives in `src/game/levels/courtyard.json`. `src/game/maps.ts`
 
 Map files save `timeLimit`, `impactPenalty` (hard-object points), and `smallImpactPenalty` (small-object points). New templates default to 90 seconds and 25/10 points. Old v1 files without `smallImpactPenalty` default to 10 small-object points; their formerly fixed `impactPenalty: 50` is migrated to 25. Exports always include both penalties, so an explicitly authored 50-point hard penalty with `smallImpactPenalty` remains 50.
 
-Map files use `schemaVersion: 1`, with `id`, `name`, `timeLimit`, `impactPenalty`, `smallImpactPenalty`, `grid`, `roads`, `objects`, `surfaces`, `spawn`, `bay`, and `parkingBays`. Optional `playerVehicle` is `sedan`, `suv`, or `taxi` (default sedan); optional `playableZone` has metre-based `x`, `z`, `width`, and `length` (dimensions 5–500 metres). Existing v1 maps remain compatible. Road cells are integer `[column, row]` pairs: `x = origin[0] + column × 5`, `z = origin[1] + row × 5`. A cell holds one road tile. Supported road assets are `road`, `roadBend`, `roadIntersection`, and `roadCrossroad`; rotations are 0, 90, 180, or 270 degrees. Props use metre-based `[x, y, z]` positions. Supporting surfaces are solid floor colliders excluded from impact penalties; solid curbs remain obstacles. `bay` is the target, while `parkingBays` contains decorative bays with optional wheel stops.
+Map files use `schemaVersion: 1`, with `id`, `name`, `timeLimit`, `impactPenalty`, `smallImpactPenalty`, `grid`, `roads`, `objects`, `surfaces`, `spawn`, `bay`, and `parkingBays`. Optional `playerVehicle` is `sedan`, `suv`, `taxi`, `hatchbackSports`, `sedanSports`, `van`, or `pickup` (default sedan); optional `playableZone` has metre-based `x`, `z`, `width`, and `length` (dimensions 5–500 metres). Existing v1 maps remain compatible. Road `[column, row]` anchors support quarter-cell increments: authored pivot `x = origin[0] + column × 5`, `z = origin[1] + row × 5`; offset models have a rotated calibrated visual/support centre around that pivot. Duplicate anchors and overlapping footprints are rejected. Supported roads are registered in `ROAD_ASSETS` in `src/game/maps.ts` and the `RoadAsset` type in `src/game/types.ts`, including all 26 retained ground tiles; rotations are 0, 90, 180, or 270 degrees. Rail-only barriers are props, not road tiles. Props use metre-based `[x, y, z]` positions. Supporting surfaces are solid floor colliders excluded from impact penalties; solid curbs remain obstacles. `bay` is the target, while `parkingBays` contains decorative bays with optional wheel stops.
 
 Imports reject unsupported versions/assets, duplicate or reserved object IDs, overlapping road cells, invalid coordinates/dimensions, and target bays smaller than the car. Files are limited to 2 MB and 2,000 authored items. Road connection notes flag neighboring tiles with incompatible lane openings; they are advisory and do not prove a level is driveable. The first version edits flat levels with the supplied asset catalog; YAML, custom asset uploads, terrain, and automatic route generation are deferred.

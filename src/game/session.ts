@@ -30,6 +30,7 @@ export class ParkingGame {
             speed: 0,
             steering: 0,
             parkingProgress: 0,
+            parkingInBay: false,
             parkingHint: 'Find the green bay',
             impactFlash: 0,
             error: null
@@ -110,16 +111,19 @@ export class ParkingGame {
         this.session.steering = steering;
         this.session.impactFlash = Math.max(0, this.session.impactFlash - dt);
         const parking = checkParking(pose, this.level.bay);
+        this.session.parkingInBay = parking.overlapping;
         this.session.parkingProgress = advanceParkingHold(this.session.parkingProgress, parking.valid, dt);
-        this.session.parkingHint = !this.session.hasMoved
-            ? 'Drive to start the clock'
-            : !parking.contained
-              ? 'Find the green bay'
-              : !parking.aligned
-                ? 'Face the arrow'
-                : !parking.stopped
-                  ? 'Brake and hold still'
-                  : 'Perfect. Hold it…';
+        this.session.parkingHint = parking.overlapping && !parking.contained
+            ? 'Move fully inside'
+            : !this.session.hasMoved && !parking.overlapping
+              ? 'Drive to start the clock'
+              : !parking.contained
+                ? 'Find the green bay'
+                : !parking.aligned
+                  ? 'Face the arrow'
+                  : !parking.stopped
+                    ? 'Brake and hold still'
+                    : 'Hold still';
         this.session.score = calculateScore(
             this.session.remaining,
             this.level.timeLimit,

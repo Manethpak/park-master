@@ -46,7 +46,8 @@ function Model({ id, assets, baseY = 0 }: { id: string; assets: LoadedAssets; ba
     const s = definition.scale;
     return (
         <Entity rotation={[0, definition.yaw, 0]}>
-            <Entity position={[-definition.center[0] * s, baseY, -definition.center[2] * s]} scale={[s, s, s]}>
+            <Entity position={[-definition.center[0] * s, baseY + (definition.groundOffset ?? 0) * s, -definition.center[2] * s]} scale={[s, s, s]}>
+                {definition.colliderMesh && <Collision type="mesh" renderAsset={assets[id].resource.renders[0]} />}
                 <Container asset={assets[id]} />
                 <Script script={ModelShadows} />
             </Entity>
@@ -96,6 +97,8 @@ function WorldObject({
 }) {
     const definition = ASSETS[object.asset];
     const dims = definition.dimensions.map((d) => d * definition.scale) as Triple;
+    const colliderDims = definition.collider?.dimensions.map((d) => d * definition.scale) as Triple | undefined;
+    const colliderOffset = definition.collider ? definition.collider.center.map((d, axis) => d * definition.scale - (axis === 1 ? dims[1] / 2 : 0)) as Triple : undefined;
     const centerY = object.body ? dims[1] / 2 : 0;
     const position = useMemo<Triple>(
         () => [object.position[0], object.position[1] + centerY, object.position[2]],
@@ -113,7 +116,12 @@ function WorldObject({
         <Entity name={object.id} position={position} rotation={[0, object.heading, 0]} ref={register}>
             {object.body && (
                 <>
-                    <Collision type="box" halfExtents={[dims[0] / 2, dims[1] / 2, dims[2] / 2]} />
+                    {definition.colliderMesh ? <Collision type="compound" /> : definition.colliderBoxes ? <>
+                        <Collision type="compound" />
+                        {definition.colliderBoxes.map((box, index) => <Entity key={index} name={`${object.id}-collider-${index}`} position={box.center.map((d, axis) => d * definition.scale - (axis === 1 ? centerY : 0)) as Triple}>
+                            <Collision type="box" halfExtents={box.dimensions.map((d) => d * definition.scale / 2) as Triple} />
+                        </Entity>)}
+                    </> : <Collision type="box" halfExtents={(colliderDims ?? dims).map((d) => d / 2) as Triple} linearOffset={colliderOffset ?? [0, 0, 0]} />}
                     <RigidBody
                         type={object.body}
                         mass={object.mass ?? 1000}
@@ -248,6 +256,7 @@ function LoadedWorld({ assets, game }: { assets: LoadedAssets; game: ParkingGame
 
 export const GameScene = memo(function GameScene({ game }: { game: ParkingGame }) {
     const [assets, setAssets] = useState<LoadedAssets>({});
+    const requiredAssets = useMemo(() => [...new Set([game.level.playerVehicle ?? 'sedan', ...game.level.objects.map((object) => object.asset)])], [game]);
     const { isPhysicsLoaded, physicsError } = usePhysics();
     const onLoad = useCallback((id: string, asset: Asset) => {
         setAssets((previous) => ({ ...previous, [id]: asset }));
@@ -255,10 +264,10 @@ export const GameScene = memo(function GameScene({ game }: { game: ParkingGame }
     useEffect(() => {
         if (physicsError) game.fail('The physics engine could not start. Please retry.');
     }, [game, physicsError]);
-    const loaded = Object.keys(assets).length === Object.keys(ASSETS).length && isPhysicsLoaded;
+    const loaded = requiredAssets.every((id) => assets[id]) && isPhysicsLoaded;
     return (
         <>
-            {Object.keys(ASSETS).map((id) => (
+            {requiredAssets.map((id) => (
                 <AssetLoader key={id} id={id} onLoad={onLoad} game={game} />
             ))}
             {loaded && <LoadedWorld assets={assets} game={game} />}

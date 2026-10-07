@@ -1,0 +1,19 @@
+.touch-controls { position: absolute; inset: auto max(16px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); display: grid; grid-template-columns: 72px 72px 1fr 72px 72px 88px; gap: 10px; }
+.touch-button { min-height: 68px; border: 1px solid #879779; border-bottom: 4px solid #6a7e57; border-radius: 12px; background: #f6f4e9ed; color: var(--ink); touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.touch-button span { display: block; font-size: 25px; line-height: 1.1; }
+.touch-button small { display: block; font-size: 10px; margin-top: 5px; }
+.touch-reverse { grid-column: 4; }
+.touch-stop { background: #f0d9c8; border-color: #b88b6d; }
+.touch-forward { background: #dce8b9; }
+.touch-button:active { background: #b5c5a1; border-bottom-width: 1px; }
+@media (max-width: 740px) and (orientation: landscape) {
+    .touch-controls { grid-template-columns: 56px 56px 1fr 60px 60px 76px; gap: 6px; }
+    .touch-button { min-height: 60px; }
+    .touch-button small { font-size: 9px; }
+}
+@media (orientation: portrait) {
+    .touch-controls { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; left: max(12px, env(safe-area-inset-left)); right: max(12px, env(safe-area-inset-right)); }
+    .touch-reverse { grid-column: auto; }
+    .touch-button { min-width: 0; min-height: 76px; padding: 8px 2px; }
+    .touch-button small { font-size: 9px; }
+}

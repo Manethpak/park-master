@@ -140,14 +140,14 @@ canvas:focus {
     margin-right: 6px;
 }
 .icon-button {
-    width: 36px;
-    height: 36px;
+    width: 48px;
+    height: 48px;
     display: grid;
     place-items: center;
-    border-radius: 50%;
+    border-radius: 12px;
     color: var(--ink);
-    border: 1px solid #5a695030;
-    background: #f6f4e975;
+    border: 1px solid #9daa8e;
+    background: var(--paper);
     font-size: 17px;
     transition:
         background 0.15s,
@@ -600,21 +600,25 @@ kbd {
     color: #859277;
     margin-top: 2px;
 }
-.parking-progress {
-    height: 26px;
-    width: 5px;
-    background: #dbe3cb;
-    border-radius: 4px;
-    margin-left: 8px;
-    overflow: hidden;
-    display: flex;
-    align-items: flex-end;
+.game-parking-meter {
+    position: absolute;
+    left: 50%;
+    bottom: 120px;
+    transform: translateX(-50%);
+    width: min(300px, calc(100% - 32px));
+    padding: 14px 16px;
+    border: 2px solid #526940;
+    border-radius: 12px;
+    background: var(--paper);
+    box-shadow: 0 4px 16px #162c3333;
 }
-.parking-progress > span {
-    height: var(--progress);
-    width: 100%;
-    background: #708d45;
-}
+.parking-meter-label { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; }
+.parking-meter-label > span { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 6px; background: var(--ink); color: var(--paper); font-weight: 700; }
+.parking-meter-label strong { font-size: 16px; }
+.parking-meter-track { height: 20px; background: #d1dac4; border: 1px solid #899c75; border-radius: 10px; overflow: hidden; }
+.parking-meter-track > span { display: block; height: 100%; background: #587b35; transition: width .075s linear; }
+.result-actions { display: grid; gap: 10px; margin-top: 18px; }
+.result-actions > button { width: 100%; margin: 0; }
 .impact-toast {
     position: absolute;
     top: 192px;
@@ -646,12 +650,15 @@ kbd {
     position: absolute;
     inset: 0;
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     place-items: center;
     background: #253c332b;
     backdrop-filter: blur(5px);
     pointer-events: auto;
 }
 .result-card {
+    min-width: 0;
+    overflow-wrap: anywhere;
     width: 390px;
     max-width: calc(100% - 30px);
     border: 1px solid #fff9;
@@ -734,13 +741,28 @@ kbd {
     margin: 0 3px;
 }
 .text-button {
-    margin-top: 15px;
-    background: none;
-    border: none;
-    color: #7a8b69;
-    font-size: 10px;
-    padding: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 48px;
+    margin-top: 12px;
+    background: #e3e8d6;
+    border: 1px solid #9daa8e;
+    border-bottom: 3px solid #8c9b7b;
+    border-radius: 10px;
+    color: var(--ink);
+    font-size: 14px;
+    font-weight: 650;
+    padding: 10px 16px;
 }
+.text-button:active { background: #cbd7b9; }
+.builder-desktop-screen { height: 100dvh; display: grid; place-items: center; padding: 16px; background: #253c35; overflow: auto; }
+.result-card > .text-button { width: 100%; }
+.primary-button { min-height: 48px; font-size: 14px; }
+.hud .builder-entry { min-height: 48px; padding: 10px 14px; font-size: 13px; border-radius: 10px; border-bottom: 3px solid #8c9b7b; }
+.mobile-tips { margin-top: 12px; padding: 12px; border-radius: 10px; background: #e3e8d6; }
+.mobile-tips p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--ink); }
+.mobile-tips .text-button { width: 100%; background: var(--paper); }
 .loading-screen {
     position: absolute;
     inset: 0;
@@ -992,78 +1014,16 @@ kbd {
     .mission-pill > div > span {
         font-size: 8px;
     }
-    .mission-parking,
-    .parking-progress {
+    .mission-parking {
         display: none;
     }
     .driving-instruments {
         bottom: 38px;
     }
 }
-.orientation-notice {
-    position: absolute; inset: 0; z-index: 10;
-    display: flex; flex-direction: column; justify-content: center; align-items: center;
-    padding: 28px; text-align: center; background: var(--paper);
-}
-.orientation-notice h2 { font-family: 'Manrope', sans-serif; letter-spacing: -1px; }
-.orientation-notice p { font-size: 13px; line-height: 1.7; color: var(--muted); }
-.orientation-notice .primary-button { max-width: 300px; }
-.rotate-symbol { font-size: 64px; color: #71844c; }
-.touch-controls {
-    position: absolute;
-    inset: auto max(16px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
-    display: grid; grid-template-columns: 72px 72px 1fr 72px 72px 88px; gap: 10px;
-}
-.touch-button {
-    min-height: 68px; border: 1px solid #879779; border-bottom: 4px solid #6a7e57;
-    border-radius: 12px; background: #f6f4e9ed; color: var(--ink);
-    touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
-}
-.touch-button span { display: block; font-size: 25px; line-height: 1.1; }
-.touch-button small { display: block; font-size: 10px; margin-top: 5px; }
-.touch-reverse { grid-column: 4; }
-.touch-stop { background: #f0d9c8; border-color: #b88b6d; }
-.touch-forward { background: #dce8b9; }
-.touch-button:active { background: #b5c5a1; border-bottom-width: 1px; }
-.mobile-hud .compact-controls, .mobile-hud .footer-controls, .mobile-hud .level-footer,
-.mobile-hud .route-map, .mobile-hud .prototype-tag { display: none; }
-.mobile-hud .controls > div { display: none; }
-.mobile-hud .controls > .touch-instructions { display: block; font-size: 11px; line-height: 1.6; }
-.mobile-hud .top-bar { padding: 10px max(16px, env(safe-area-inset-right)) 10px max(16px, env(safe-area-inset-left)); gap: 10px; }
-.mobile-hud .wordmark { font-size: 15px; }
-.mobile-hud .wordmark small, .mobile-hud .level-label { display: none; }
-.mobile-hud .brand-icon { width: 28px; height: 32px; font-size: 23px; }
-.mobile-hud .icon-button { width: 44px; height: 44px; }
-.mobile-hud .scoreboard { top: 72px; right: max(16px, env(safe-area-inset-right)); width: 145px; }
-.mobile-hud .timer-stat { padding: 8px 12px; }
-.mobile-hud .timer-stat strong { font-size: 26px; }
-.mobile-hud .small-stats { padding: 8px 12px; gap: 8px; }
-.mobile-hud .small-stats strong { font-size: 18px; }
-.mobile-hud .small-stats .eyebrow { font-size: 7px; letter-spacing: 1px; }
-.mobile-hud .mission-pill { top: 72px; left: max(16px, env(safe-area-inset-left)); transform: none; max-width: calc(100% - 190px); padding: 8px 12px; }
-.mobile-hud .impact-toast { top: 135px; }
-.mobile-hud .driving-instruments { bottom: max(16px, env(safe-area-inset-bottom)); padding: 8px 12px; }
-.mobile-hud .steering-readout, .mobile-hud .instrument-divider { display: none; }
-.mobile-hud .speed-readout strong { font-size: 25px; }
-.mobile-hud .intro-panel {
-    top: 72px; bottom: auto; left: max(16px, env(safe-area-inset-left)); transform: none;
-    width: min(360px, calc(100% - 190px)); max-height: calc(100dvh - 84px);
-    overflow: auto; padding: 16px 20px; animation: result-arrive .3s both;
-}
-.mobile-hud .intro-panel h1 { font-size: 27px; margin: 10px 0; }
-.mobile-hud .intro-description, .mobile-hud .intro-panel > .eyebrow { display: none; }
-.mobile-hud .briefing { padding: 8px 0; }
-.mobile-hud .objective { margin: 10px 0; }
-.mobile-hud .result-card { max-height: calc(100dvh - 24px); overflow: auto; padding: 20px; }
 @media (max-width: 1024px), (pointer: coarse) {
     #root, .game-shell, .game-menu { min-height: 0; }
     .game-shell canvas { touch-action: none; }
-}
-@media (max-width: 740px) and (orientation: landscape) {
-    .touch-controls { grid-template-columns: 56px 56px 1fr 60px 60px 76px; gap: 6px; }
-    .touch-button { min-height: 60px; }
-    .touch-button small { font-size: 9px; }
-    .mobile-hud .wordmark > span:last-child { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
     *,

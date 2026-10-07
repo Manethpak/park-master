@@ -1,22 +1,75 @@
 import { ASSETS, vehicleGeometry } from './assets.ts';
+import { PLAYER_VEHICLES } from './types.ts';
 import type { LevelDefinition, MapDefinition, ParkingBay, RoadAsset, RoadTile } from './types.ts';
 
 export const ROAD_SIZE = 5;
 export const DRAFT_KEY = 'park-master.map-draft.v1';
-export const OBJECT_BODIES: Record<string, 'static' | 'dynamic' | undefined> = {
-    sedan: 'static', suv: 'static', taxi: 'static', house: 'static', houseWide: 'static',
-    fence: 'static', sign: 'static', cone: 'dynamic', box: 'dynamic', tree: undefined, treeSmall: undefined
-};
-export const ROAD_ASSETS: Record<RoadAsset, { label: string; ports: number[] }> = {
+export const OBJECT_BODIES = Object.fromEntries(Object.entries(ASSETS).filter(([, asset]) => asset.category !== 'Roads').map(([id, asset]) => [id, asset.body]));
+export const ROAD_ASSETS: Record<RoadAsset, { label: string; ports: number[]; offsets?: Partial<Record<number, number[]>> }> = {
     // Edge lane geometry measured in the source GLBs. Directions: +Z, +X, -Z, -X.
-    road: { label: 'Straight road', ports: [1, 3] },
-    roadBend: { label: 'Road bend', ports: [0, 3] },
-    roadIntersection: { label: 'T junction', ports: [0, 1, 3] },
-    roadCrossroad: { label: 'Crossroads', ports: [0, 1, 2, 3] }
+    road: { label: ASSETS.road.label, ports: [1, 3] },
+    roadBend: { label: ASSETS.roadBend.label, ports: [0, 3] },
+    roadIntersection: { label: ASSETS.roadIntersection.label, ports: [0, 1, 3] },
+    roadCrossroad: { label: ASSETS.roadCrossroad.label, ports: [0, 1, 2, 3] },
+    roadCrossing: { label: ASSETS.roadCrossing.label, ports: [1, 3] },
+    roadEnd: { label: ASSETS.roadEnd.label, ports: [1] },
+    roadEndRound: { label: ASSETS.roadEndRound.label, ports: [1] },
+    roadBendSquare: { label: ASSETS.roadBendSquare.label, ports: [0, 3] },
+    roadBendSidewalk: { label: ASSETS.roadBendSidewalk.label, ports: [0, 3] },
+    roadCrossroadLine: { label: ASSETS.roadCrossroadLine.label, ports: [0, 1, 2, 3] },
+    roadCrossroadPath: { label: ASSETS.roadCrossroadPath.label, ports: [0, 1, 2, 3] },
+    roadIntersectionLine: { label: ASSETS.roadIntersectionLine.label, ports: [0, 1, 3] },
+    roadIntersectionPath: { label: ASSETS.roadIntersectionPath.label, ports: [0, 1, 3] },
+    // Curb cuts are driveways, not additional full-width road-lane ports.
+    roadDrivewaySingle: { label: ASSETS.roadDrivewaySingle.label, ports: [1, 3] },
+    roadDrivewayDouble: { label: ASSETS.roadDrivewayDouble.label, ports: [1, 3] },
+    roadSquare: { label: ASSETS.roadSquare.label, ports: [] },
+    roadCurve: { label: ASSETS.roadCurve.label, ports: [0, 3], offsets: { 0: [0.5], 3: [-0.5] } },
+    roadCurveIntersection: { label: ASSETS.roadCurveIntersection.label, ports: [0, 1, 3], offsets: { 0: [0.5], 1: [-0.5], 3: [-0.5] } },
+    roadCurvePavement: { label: ASSETS.roadCurvePavement.label, ports: [0, 3], offsets: { 0: [0.5], 3: [-0.5] } },
+    roadRoundabout: { label: ASSETS.roadRoundabout.label, ports: [0, 1, 2, 3] },
+    roadSide: { label: ASSETS.roadSide.label, ports: [1, 3] },
+    roadSideEntry: { label: ASSETS.roadSideEntry.label, ports: [1, 3] },
+    roadSideExit: { label: ASSETS.roadSideExit.label, ports: [1, 3] },
+    roadSplit: { label: ASSETS.roadSplit.label, ports: [1, 3], offsets: { 3: [-0.5, 0.5] } },
+    roadHalf: { label: ASSETS.roadHalf.label, ports: [1, 3] },
+    tileLow: { label: ASSETS.tileLow.label, ports: [] }
 };
 
+function rotateRoadPoint(x: number, z: number, rotation: number): [number, number] {
+    const angle = rotation * Math.PI / 180;
+    return [x * Math.cos(angle) + z * Math.sin(angle), z * Math.cos(angle) - x * Math.sin(angle)];
+}
+
+/** Keep authored lane pivots on the grid; compensated visuals/supports share this centre. */
 export function roadPosition(map: MapDefinition, road: RoadTile): [number, number] {
-    return [map.grid.origin[0] + road.cell[0] * ROAD_SIZE, map.grid.origin[1] + road.cell[1] * ROAD_SIZE];
+    const asset = ASSETS[road.asset];
+    const offset = rotateRoadPoint(asset.center[0] * asset.scale, asset.center[2] * asset.scale, road.rotation);
+    return [map.grid.origin[0] + road.cell[0] * ROAD_SIZE + offset[0], map.grid.origin[1] + road.cell[1] * ROAD_SIZE + offset[1]];
+}
+
+export function roadBounds(map: MapDefinition, road: RoadTile) {
+    const [x, z] = roadPosition(map, road), asset = ASSETS[road.asset];
+    const width = asset.dimensions[road.rotation % 180 === 0 ? 0 : 2] * asset.scale;
+    const length = asset.dimensions[road.rotation % 180 === 0 ? 2 : 0] * asset.scale;
+    return { minX: x - width / 2, maxX: x + width / 2, minZ: z - length / 2, maxZ: z + length / 2 };
+}
+
+export function roadsOverlap(map: MapDefinition, a: RoadTile, b: RoadTile) {
+    const aa = roadBounds(map, a), bb = roadBounds(map, b);
+    return Math.min(aa.maxX, bb.maxX) - Math.max(aa.minX, bb.minX) > 0.001
+        && Math.min(aa.maxZ, bb.maxZ) - Math.max(aa.minZ, bb.minZ) > 0.001;
+}
+
+export function roadPortPoints(map: MapDefinition, road: RoadTile) {
+    const asset = ASSETS[road.asset], definition = ROAD_ASSETS[road.asset];
+    const [x, z] = roadPosition(map, road);
+    return definition.ports.flatMap((direction) => (definition.offsets?.[direction] ?? [0]).map((offset) => {
+        const localX = direction % 2 ? (direction === 1 ? 1 : -1) * asset.dimensions[0] / 2 : offset - asset.center[0];
+        const localZ = direction % 2 ? offset - asset.center[2] : (direction === 0 ? 1 : -1) * asset.dimensions[2] / 2;
+        const point = rotateRoadPoint(localX * asset.scale, localZ * asset.scale, road.rotation);
+        return { x: x + point[0], z: z + point[1], direction: (direction + road.rotation / 90) % 4 };
+    }));
 }
 
 export function roadPorts(road: RoadTile) {
@@ -40,7 +93,8 @@ export function resolveMap(map: MapDefinition): LevelDefinition {
             ...structuredClone(map.surfaces),
             ...map.roads.map((road) => {
                 const [x, z] = roadPosition(map, road);
-                return { id: `road-support-${road.id}`, position: [x, -0.15, z] as [number, number, number], size: [5, 0.3, 5] as [number, number, number], heading: 0, color: '#747d7c', solid: true, support: true };
+                const asset = ASSETS[road.asset];
+                return { id: `road-support-${road.id}`, position: [x, -0.15, z] as [number, number, number], size: [asset.dimensions[0] * asset.scale, 0.3, asset.dimensions[2] * asset.scale] as [number, number, number], heading: road.rotation, color: '#747d7c', solid: true, support: true };
             })
         ],
         parkingBays: structuredClone(map.parkingBays)
@@ -89,7 +143,7 @@ export function parseMap(value: unknown): MapDefinition {
     if (grid.cellSize !== ROAD_SIZE) fail('Road cellSize must be 5 metres to match the calibrated tiles.');
     const spawn = record(m.spawn, 'spawn');
     const target = bay(m.bay, 'bay');
-    if (m.playerVehicle !== undefined && !['sedan', 'suv', 'taxi'].includes(m.playerVehicle as string)) fail('Unsupported player vehicle.');
+    if (m.playerVehicle !== undefined && !PLAYER_VEHICLES.some((vehicle) => vehicle === m.playerVehicle)) fail('Unsupported player vehicle.');
     const vehicle = vehicleGeometry(m.playerVehicle as MapDefinition['playerVehicle']);
     if (target.width < vehicle.width || target.length < vehicle.length) fail('The target bay must fit the entire player car.');
     const occupied = new Set<string>();
@@ -105,7 +159,7 @@ export function parseMap(value: unknown): MapDefinition {
             const r = record(value, `roads[${i}]`);
             if (typeof r.asset !== 'string' || !Object.hasOwn(ROAD_ASSETS, r.asset)) fail(`roads[${i}].asset is not a supported road tile.`);
             const cell = tuple(r.cell, `roads[${i}].cell`, 2, -100) as [number, number];
-            if (!cell.every((n) => Number.isInteger(n) && n <= 100)) fail('Road cells must be integers between -100 and 100.');
+            if (!cell.every((n) => Number.isInteger(n * 4) && n <= 100)) fail('Road cells must use quarter-cell increments between -100 and 100.');
             if (occupied.has(cell.join(','))) fail(`Two roads occupy cell ${cell.join(',')}.`);
             occupied.add(cell.join(','));
             if (![0, 90, 180, 270].includes(r.rotation as number)) fail('Road rotation must be 0, 90, 180, or 270 degrees.');
@@ -133,7 +187,18 @@ export function parseMap(value: unknown): MapDefinition {
             return { ...bay(b, `parkingBays[${i}]`), id: id(b.id, `parkingBays[${i}].id`), wheelStop: boolean(b.wheelStop, `parkingBays[${i}].wheelStop`) };
         })
     };
+    for (let i = 0; i < map.roads.length; i++) for (let j = i + 1; j < map.roads.length; j++) {
+        if (roadsOverlap(map, map.roads[i], map.roads[j])) fail(`${map.roads[i].id} and ${map.roads[j].id}: road footprints overlap.`);
+    }
     if (m.playerVehicle !== undefined) map.playerVehicle = m.playerVehicle as MapDefinition['playerVehicle'];
+    if (m.editorOrder !== undefined) {
+        const keys = new Set([
+            ...map.surfaces.map((item) => `surface:${item.id}`), ...map.roads.map((item) => `road:${item.id}`),
+            ...map.objects.map((item) => `object:${item.id}`), ...map.parkingBays.map((item) => `parking:${item.id}`),
+            'spawn:spawn', 'target:target', ...(m.playableZone !== undefined ? ['zone:playable-zone'] : [])
+        ]);
+        map.editorOrder = [...new Set(array(m.editorOrder, 'editorOrder').map((value, index) => string(value, `editorOrder[${index}]`)).filter((key) => keys.has(key)))];
+    }
     if (m.difficulty !== undefined) map.difficulty = m.difficulty as MapDefinition['difficulty'];
     if (m.challenge !== undefined) map.challenge = string(m.challenge, 'challenge');
     if (m.campaignOrder !== undefined) map.campaignOrder = integer(m.campaignOrder, 'campaignOrder', 0, 10000);
@@ -154,15 +219,18 @@ export function readMapJson(text: string) {
 
 export function mapWarnings(map: MapDefinition): string[] {
     const warnings: string[] = [];
-    const cells = new Map(map.roads.map((r) => [r.cell.join(','), r]));
-    const directions = [[0, 1], [1, 0], [0, -1], [-1, 0]];
-    for (const road of map.roads) {
-        const ports = roadPorts(road);
-        for (let direction = 0; direction < 2; direction++) {
-            const [dx, dz] = directions[direction];
-            const neighbor = cells.get([road.cell[0] + dx, road.cell[1] + dz].join(','));
-            if (neighbor && ports.includes(direction) !== roadPorts(neighbor).includes((direction + 2) % 4)) warnings.push(`${road.id} and ${neighbor.id}: lanes do not connect.`);
-        }
+    for (let i = 0; i < map.roads.length; i++) for (let j = i + 1; j < map.roads.length; j++) {
+        const a = map.roads[i], b = map.roads[j], aa = roadBounds(map, a), bb = roadBounds(map, b);
+        const near = (a: number, b: number) => Math.abs(a - b) < 0.001;
+        const commonZ = Math.min(aa.maxZ, bb.maxZ) - Math.max(aa.minZ, bb.minZ) > 0.001;
+        const commonX = Math.min(aa.maxX, bb.maxX) - Math.max(aa.minX, bb.minX) > 0.001;
+        const direction = commonZ && near(aa.maxX, bb.minX) ? 1 : commonZ && near(aa.minX, bb.maxX) ? 3
+            : commonX && near(aa.maxZ, bb.minZ) ? 0 : commonX && near(aa.minZ, bb.maxZ) ? 2 : -1;
+        if (direction < 0) continue;
+        const within = (p: { x: number; z: number }, bounds: typeof aa) => p.x >= bounds.minX - 0.001 && p.x <= bounds.maxX + 0.001 && p.z >= bounds.minZ - 0.001 && p.z <= bounds.maxZ + 0.001;
+        const ap = roadPortPoints(map, a).filter((p) => p.direction === direction && within(p, bb));
+        const bp = roadPortPoints(map, b).filter((p) => p.direction === (direction + 2) % 4 && within(p, aa));
+        if ([...ap, ...bp].some((p) => !(ap.includes(p) ? bp : ap).some((q) => near(p.x, q.x) && near(p.z, q.z)))) warnings.push(`${a.id} and ${b.id}: lanes do not connect.`);
     }
     if (!map.surfaces.some((s) => s.support)) warnings.push('Add a solid ground surface to support the car and props.');
     return warnings;

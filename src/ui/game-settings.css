@@ -1,0 +1,16 @@
+.game-settings-backdrop { position: absolute; inset: 0; z-index: 5; display: grid; place-items: center; padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); background: #253c3370; backdrop-filter: blur(5px); overflow: auto; }
+.game-settings-card { width: min(380px, 100%); max-height: 100%; overflow: auto; padding: 20px; background: var(--paper); border: 1px solid #9daa8e; border-radius: 16px; box-shadow: 0 12px 40px #1c342737; }
+.game-settings-card h2 { font: 750 25px 'Manrope', sans-serif; margin: 0 0 16px; }
+.game-settings-card button { min-height: 48px; min-width: 44px; padding: 12px; border: 1px solid #9daa8e; border-bottom: 3px solid #8c9b7b; border-radius: 10px; background: #e3e8d6; color: var(--ink); font-size: 14px; font-weight: 650; }
+.game-settings-card .game-settings-resume { display: flex; align-items: center; justify-content: space-between; width: 100%; margin-bottom: 12px; background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.game-settings-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.game-settings-help { margin-top: 12px; }
+.game-settings-help .mobile-tips { margin: 0; }
+.game-settings-help .controls > div { font-size: 13px; }
+.game-settings-card button:active { filter: brightness(.92); }
+.mobile-settings .game-settings-card { padding: 16px; }
+@media (orientation: landscape) {
+    .mobile-settings .game-settings-card { width: min(520px, 100%); }
+    .mobile-settings .game-settings-help .mobile-tips { display: flex; gap: 16px; align-items: center; }
+    .mobile-settings .mobile-tips .text-button { flex: 0 0 90px; margin: 0; }
+}

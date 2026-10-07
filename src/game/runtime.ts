@@ -1,7 +1,7 @@
 import { Color, Vec3 } from 'playcanvas';
 import type { Application, ContactResult, Entity } from 'playcanvas';
 
-import { vehicleGeometry } from './assets.ts';
+import { ASSETS, vehicleGeometry } from './assets.ts';
 import { DRIVING, stepSpeed, stepSteering, steeringYawRate } from './driving.ts';
 import { mouseSteering } from './rules.ts';
 import type { ParkingGame } from './session.ts';
@@ -114,8 +114,7 @@ export class ParkingRuntime {
     private collisionStart = (result: ContactResult) => {
         if (this.game.level.surfaces?.some((surface) => surface.support && surface.id === result.other.name)) return;
         const object = this.game.level.objects.find((object) => object.id === result.other.name);
-        const small = object?.asset === 'cone' || object?.asset === 'box';
-        this.game.impact(result.other.guid, small ? 'small' : 'hard');
+        this.game.impact(result.other.guid, object ? ASSETS[object.asset].impactKind ?? 'hard' : 'hard');
     };
     private collisionEnd = (other: Entity) => this.game.contacts.leave(other.guid);
 
@@ -169,8 +168,8 @@ export class ParkingRuntime {
         const position = this.player.getPosition();
         const actualSpeed = Math.hypot(body.linearVelocity.x, body.linearVelocity.z);
         const longitudinal = body.linearVelocity.x * fx + body.linearVelocity.z * fz;
+        const vehicle = vehicleGeometry(this.game.level.playerVehicle);
         if (phase === 'playing' && dt > 0) {
-            const vehicle = vehicleGeometry(this.game.level.playerVehicle);
             const touch = new Set(this.game.touchControls.values());
             const forward = this.keys.has('KeyW') || this.keys.has('ArrowUp') || touch.has('forward');
             const reverse = this.keys.has('KeyS') || this.keys.has('ArrowDown') || touch.has('reverse');
@@ -192,14 +191,7 @@ export class ParkingRuntime {
             );
             this.game.tick(
                 clockDt,
-                {
-                    x: position.x,
-                    z: position.z,
-                    heading,
-                    width: vehicle.width,
-                    length: vehicle.length,
-                    speed: actualSpeed
-                },
+                { x: position.x, z: position.z, heading, width: vehicle.width, length: vehicle.length, speed: actualSpeed },
                 this.steering / DRIVING.maximumSteering
             );
         }
@@ -224,11 +216,34 @@ export class ParkingRuntime {
                     level: { id: this.game.level.id, name: this.game.level.name, timeLimit: this.game.level.timeLimit, impactPenalty: this.game.level.impactPenalty, smallImpactPenalty: this.game.level.smallImpactPenalty ?? 10, spawn: this.game.level.spawn, bay: this.game.level.bay, playerVehicle: this.game.level.playerVehicle ?? 'sedan', playableZone: this.game.level.playableZone },
                     vehicle: vehicleGeometry(this.game.level.playerVehicle),
                     carCollider: this.player.collision?.halfExtents.toArray().map((extent) => extent * 2),
-                    roads: this.game.level.objects.filter((object) => object.asset.startsWith('road')).map((object) => {
+                    objects: this.game.level.objects.map((object) => {
+                        const entity = this.app.root.findByName(object.id) as Entity;
+                        const bounds = entity.findComponents('render').flatMap((render) => render.meshInstances.map((mesh) => mesh.aabb));
+                        return {
+                            id: object.id, asset: object.asset, body: entity.rigidbody?.type,
+                            colliderType: entity.collision?.type,
+                            collider: entity.collision?.type === 'box' ? entity.collision.halfExtents.toArray().map((extent) => extent * 2) : undefined,
+                            colliderOffset: entity.collision?.linearOffset.toArray(),
+                             colliderParts: entity.collision?.type === 'compound' ? entity.findComponents('collision').filter((collision) => collision.entity !== entity && collision.type === 'box').map((collision) => ({
+                                position: collision.entity.getLocalPosition().toArray(),
+                                dimensions: collision.halfExtents.toArray().map((extent) => extent * 2)
+                            })) : undefined,
+                            min: ['x', 'y', 'z'].map((axis) => {
+                                const key = axis as 'x' | 'y' | 'z';
+                                return Math.min(...bounds.map((bound) => bound.center[key] - bound.halfExtents[key]));
+                            }),
+                            max: ['x', 'y', 'z'].map((axis) => {
+                                const key = axis as 'x' | 'y' | 'z';
+                                return Math.max(...bounds.map((bound) => bound.center[key] + bound.halfExtents[key]));
+                            })
+                        };
+                    }),
+                    roads: this.game.level.objects.filter((object) => ASSETS[object.asset].category === 'Roads').map((object) => {
                         const entity = this.app.root.findByName(object.id) as Entity;
                         const bounds = entity.findComponents('render').flatMap((render) => render.meshInstances.map((mesh) => mesh.aabb));
                         return {
                             id: object.id, position: entity.getPosition().toArray(), heading: getHeading(entity),
+                            supportCollider: (this.app.root.findByName(`road-support-${object.id}`) as Entity | null)?.collision?.halfExtents.toArray().map((extent) => extent * 2),
                             dimensions: ['x', 'y', 'z'].map((axis) => {
                                 const key = axis as 'x' | 'y' | 'z';
                                 return Math.max(...bounds.map((bound) => bound.center[key] + bound.halfExtents[key])) - Math.min(...bounds.map((bound) => bound.center[key] - bound.halfExtents[key]));

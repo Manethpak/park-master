@@ -6,24 +6,33 @@ export type Selection = { kind: 'road' | 'object' | 'surface' | 'parking' | 'spa
 export type Item = Selection & { x: number; z: number; y: number; heading: number; width: number; length: number; height?: number; asset?: string; color?: string; body?: string; mass?: number; solid?: boolean; support?: boolean; wheelStop?: boolean };
 export type Tool = 'select' | 'spawn' | 'target' | 'parking' | 'floor' | 'curb' | `road:${RoadAsset}` | `object:${string}`;
 
-export const PROP_LABELS: Record<string, string> = {
-    sedan: 'Parked sedan', suv: 'Parked SUV', taxi: 'Parked taxi', cone: 'Traffic cone', box: 'Movable box',
-    house: 'House', houseWide: 'Wide house', tree: 'Large tree', treeSmall: 'Small tree', fence: 'Fence', sign: 'Warning sign'
-};
+export const PROP_LABELS: Record<string, string> = Object.fromEntries(Object.entries(ASSETS).filter(([, asset]) => asset.category !== 'Roads').map(([id, asset]) => [id, asset.label]));
 
 export function items(map: MapDefinition): Item[] {
-    return [
-        ...(map.playableZone ? [{ ...map.playableZone, kind: 'zone' as const, id: 'playable-zone', y: 0, heading: 0 }] : []),
+    const result: Item[] = [
         ...map.surfaces.map((s) => ({ kind: 'surface' as const, id: s.id, x: s.position[0], y: s.position[1], z: s.position[2], heading: s.heading, width: s.size[0], height: s.size[1], length: s.size[2], color: s.color, solid: s.solid, support: s.support })),
-        ...map.roads.map((r) => { const [x, z] = roadPosition(map, r); return { kind: 'road' as const, id: r.id, x, z, y: 0, heading: r.rotation, width: 5, length: 5, asset: r.asset }; }),
+        ...map.roads.map((r) => { const [x, z] = roadPosition(map, r), a = ASSETS[r.asset]; return { kind: 'road' as const, id: r.id, x, z, y: 0, heading: r.rotation, width: a.dimensions[0] * a.scale, length: a.dimensions[2] * a.scale, asset: r.asset }; }),
         ...map.parkingBays.map((b) => ({ ...b, kind: 'parking' as const, y: 0 })),
         { ...map.bay, kind: 'target' as const, id: 'target', y: 0 },
         ...map.objects.map((o) => {
             const a = ASSETS[o.asset];
             return { kind: 'object' as const, id: o.id, x: o.position[0], y: o.position[1], z: o.position[2], heading: o.heading, width: a.dimensions[0] * a.scale, length: a.dimensions[2] * a.scale, asset: o.asset, body: o.body, mass: o.mass };
         }),
-        { kind: 'spawn' as const, id: 'spawn', x: map.spawn.position[0], y: map.spawn.position[1], z: map.spawn.position[2], heading: map.spawn.heading, width: vehicleGeometry(map.playerVehicle).width, length: vehicleGeometry(map.playerVehicle).length }
+        { kind: 'spawn' as const, id: 'spawn', x: map.spawn.position[0], y: map.spawn.position[1], z: map.spawn.position[2], heading: map.spawn.heading, width: vehicleGeometry(map.playerVehicle).width, length: vehicleGeometry(map.playerVehicle).length },
+        ...(map.playableZone ? [{ ...map.playableZone, kind: 'zone' as const, id: 'playable-zone', y: 0, heading: 0 }] : [])
     ];
+    if (!map.editorOrder) return result;
+    const order = new Map(map.editorOrder.map((key, index) => [key, index]));
+    return result.sort((a, b) => (order.get(`${a.kind}:${a.id}`) ?? map.editorOrder!.length) - (order.get(`${b.kind}:${b.id}`) ?? map.editorOrder!.length));
+}
+
+export function reorderItem(map: MapDefinition, selected: Selection, direction: number) {
+    const order = items(map).map((item) => `${item.kind}:${item.id}`);
+    const index = order.indexOf(`${selected.kind}:${selected.id}`);
+    const next = index + direction;
+    if (index < 0 || next < 0 || next >= order.length) return;
+    [order[index], order[next]] = [order[next], order[index]];
+    map.editorOrder = order;
 }
 
 export function moveItem(map: MapDefinition, selection: Selection, x: number, z: number) {
@@ -31,7 +40,8 @@ export function moveItem(map: MapDefinition, selection: Selection, x: number, z:
         case 'zone': if (map.playableZone) { map.playableZone.x = x; map.playableZone.z = z; } break;
         case 'road': {
             const road = map.roads.find((r) => r.id === selection.id)!;
-            road.cell = [Math.round((x - map.grid.origin[0]) / 5), Math.round((z - map.grid.origin[1]) / 5)]; break;
+            const [cx, cz] = roadPosition(map, road);
+            road.cell = [Math.round((road.cell[0] + (x - cx) / 5) * 4) / 4, Math.round((road.cell[1] + (z - cz) / 5) * 4) / 4]; break;
         }
         case 'object': { const o = map.objects.find((o) => o.id === selection.id)!; o.position[0] = x; o.position[2] = z; break; }
         case 'surface': { const s = map.surfaces.find((s) => s.id === selection.id)!; s.position[0] = x; s.position[2] = z; break; }
@@ -79,13 +89,13 @@ export function placeItem(map: MapDefinition, tool: Tool, x: number, z: number, 
     if (tool.startsWith('road:')) {
         const asset = tool.slice(5) as RoadAsset;
         const id = freshId(map, 'road');
-        map.roads.push({ id, asset, cell: [Math.round((x - map.grid.origin[0]) / 5), Math.round((z - map.grid.origin[1]) / 5)], rotation: heading });
+        map.roads.push({ id, asset, cell: [Math.round((x - map.grid.origin[0]) / 5 * 4) / 4, Math.round((z - map.grid.origin[1]) / 5 * 4) / 4], rotation: heading });
         return { kind: 'road', id };
     }
     if (tool.startsWith('object:')) {
         const asset = tool.slice(7), id = freshId(map, asset);
-        const dynamic = ['cone', 'box'].includes(asset);
-        map.objects.push({ id, asset, position: [x, 0, z], heading, ...(['tree', 'treeSmall'].includes(asset) ? {} : { body: dynamic ? 'dynamic' as const : 'static' as const }), ...(dynamic ? { mass: asset === 'cone' ? 8 : 16 } : {}) });
+        const definition = ASSETS[asset];
+        map.objects.push({ id, asset, position: [x, 0, z], heading, ...(definition.body ? { body: definition.body } : {}), ...(definition.mass !== undefined ? { mass: definition.mass } : {}) });
         return { kind: 'object', id };
     }
     if (tool === 'spawn') { map.spawn = { position: [x, 0, z], heading }; return { kind: 'spawn', id: 'spawn' }; }

@@ -11,9 +11,20 @@
 
 ## Project context
 
-Park Master is a desktop and mobile parking puzzle using React, TypeScript, Vite, `@playcanvas/react`, PlayCanvas Engine, and `sync-ammo`. Keep the React-owned `<Application usePhysics>` architecture. Mobile gameplay uses width-aware touch pedals and steering buttons, with a portrait pause prompt and optional fullscreen landscape lock. Traffic and online scores are deferred; the map builder remains desktop-oriented.
+Park Master is a desktop and mobile parking puzzle using React, TypeScript, Vite, `@playcanvas/react`, PlayCanvas Engine, and `sync-ammo`. Keep the React-owned `<Application usePhysics>` architecture. Mobile gameplay supports portrait and landscape with width-aware touch pedals and steering buttons, one-time dismissible tips with a Help action, and optional fullscreen landscape lock. Rotation clears held inputs without blocking play. Traffic and online scores are deferred; the map builder remains desktop-oriented.
 
 Read [README.md](README.md) for setup, controls, scoring, and available commands. Use pnpm; Node.js must satisfy the version in `package.json`.
+
+## Game UI direction
+
+- Design a clean game interface, not a website, landing page, or text-heavy dashboard. Prioritize gameplay visibility, clear navigation, and immediately recognizable actions.
+- Treat game-specific UI needs as the design authority. Use web-design and frontend-design skills only as supporting implementation guidance; do not let their website-oriented patterns dictate the interface.
+- Keep copy minimal: short action labels, compact status indicators, and concise feedback. Avoid verbose instructions, decorative headings, marketing copy, and repeated explanations. Put optional help behind an explicit help action rather than filling the HUD with text.
+- Make navigation predictable with consistent placement for play, pause, resume, restart, and back actions. Give each screen a clear primary action and make the current screen, selected item, and available next steps obvious.
+- Prefer readable icons, meters, and visual state cues where they communicate faster than prose. Keep accessible names for icon-only controls and use short visible labels when an icon would be ambiguous; never rely on color alone.
+- Keep overlays and HUD elements compact, with strong contrast, clear hierarchy, and comfortable mouse and touch targets. Preserve the view of the car, obstacles, and parking bay; show secondary details only when needed.
+- Support portrait mobile, landscape mobile, and desktop gameplay. Use solid, clearly bounded secondary buttons rather than small ghost links; keep touch targets at least 44 × 44 CSS pixels. Show mobile control tips once, remember dismissal when possible, and keep Help available to reopen them.
+- Apply the same clarity to the map builder: concise tool labels, distinct selected states, and focused panels instead of explanatory clutter. Preserve the sidebar responsibilities described below.
 
 ## Code ownership
 
@@ -31,7 +42,7 @@ Preserve the parking rules: the entire car footprint must be inside the bay, hea
 
 ## Assets and scene conventions
 
-- Keep supplied source assets under `src/assets` intact. Copy only selected models and textures to `public/assets/kenney/<pack>/`.
+- Keep one canonical copy of retained models, previews, and textures under `public/assets/kenney/<pack>/`. The duplicate `src/assets` library and excluded models were removed at the user's request; do not recreate them.
 - Preserve each GLB’s relative `Textures/colormap.png` reference. Keep asset URLs compatible with Vite’s `BASE_URL`.
 - Inspect and calibrate new models once in `src/game/assets.ts` before repeated placement. Existing models face +Z; the player sedan is normalized to 4.2 metres long. Grounding, pivots, visual dimensions, and colliders must agree.
 - Give each object one semantic entity root with its imported visual and simple measured collider. Cars, buildings, fences, and mounted signs are static obstacles; cones and boxes are dynamic props.

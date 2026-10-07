@@ -1,0 +1,4 @@
+.game-stars { display: inline-flex; gap: 5px; font-size: 22px; color: #8c998370; line-height: 1.2; white-space: nowrap; }
+.game-stars .earned { color: #e6bf57; text-shadow: 0 2px 0 #88632b; }
+.result-card .game-stars { display: flex; justify-content: center; margin: 16px 0 4px; font-size: 39px; }
+.result-card .campaign-best { margin-top: 10px; font-size: 10px; color: #60773e; }

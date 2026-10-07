@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { PointerEvent } from 'react';
 import type { ParkingGame } from '../game/session.ts';
+import './mobile-controls.css';
 
 export function useMobileLayout() {
     const [layout, setLayout] = useState(() => ({
@@ -36,6 +37,28 @@ const buttons = [
     ['left', 'Steer left', '←'], ['right', 'Steer right', '→'],
     ['reverse', 'Reverse', '↓'], ['stop', 'Stop', '■'], ['forward', 'Accelerate', '↑']
 ] as const;
+
+const TIP_KEY = 'park-master.touch-tips.v1';
+
+export function useMobileTips() {
+    const [showTips, setShowTips] = useState(() => {
+        try { return localStorage.getItem(TIP_KEY) !== 'seen'; }
+        catch { return true; }
+    });
+    const dismissTips = () => {
+        setShowTips(false);
+        try { localStorage.setItem(TIP_KEY, 'seen'); }
+        catch { /* Keep dismissal for this session when storage is unavailable. */ }
+    };
+    return { showTips, dismissTips, openTips: () => setShowTips(true) };
+}
+
+export function MobileTips({ onDismiss }: { onDismiss: () => void }) {
+    return <div className="mobile-tips" role="group" aria-label="Driving tips">
+        <p>Hold ↑ / ↓ to drive, ■ to brake. Hold ← / → to steer.</p>
+        <button className="text-button" onClick={onDismiss}>Got it</button>
+    </div>;
+}
 
 export function MobileControls({ game }: { game: ParkingGame }) {
     useEffect(() => () => game.touchControls.clear(), [game]);

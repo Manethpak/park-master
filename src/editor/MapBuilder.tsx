@@ -2,9 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import { COURTYARD_MAP } from '../game/level.ts';
 import { DRAFT_KEY, footprintInside, mapErrors, mapWarnings, parseMap, readMapJson, ROAD_ASSETS } from '../game/maps.ts';
-import { ASSETS, vehicleGeometry } from '../game/assets.ts';
-import type { MapDefinition, PlayerVehicle, RoadAsset } from '../game/types.ts';
-import { deleteItem, duplicateItem, items, moveItem, placeItem, PROP_LABELS, setProperty, toolLabel } from './model.ts';
+import { ASSETS, VEHICLE_TUNING, vehicleGeometry } from '../game/assets.ts';
+import { PLAYER_VEHICLES } from '../game/types.ts';
+import type { MapDefinition, RoadAsset } from '../game/types.ts';
+import { deleteItem, duplicateItem, items, moveItem, placeItem, PROP_LABELS, reorderItem, setProperty, toolLabel } from './model.ts';
 import type { Item, Selection, Tool } from './model.ts';
 import { PREVIEWS } from './previews.ts';
 import { MapSettings } from './MapSettings.tsx';
@@ -14,12 +15,12 @@ type History = { past: MapDefinition[]; map: MapDefinition; future: MapDefinitio
 type Gesture = { type: 'move' | 'pan' | 'rotate' | 'resize'; start: [number, number]; center: [number, number]; item?: Item; corner?: [number, number] };
 
 const CATEGORIES: { label: string; tools: Tool[] }[] = [
-    { label: 'Roads · 5 m', tools: (Object.keys(ROAD_ASSETS) as RoadAsset[]).map((a) => `road:${a}`) },
+    { label: 'Roads', tools: (Object.keys(ROAD_ASSETS) as RoadAsset[]).map((a) => `road:${a}`) },
     { label: 'Parking & gameplay', tools: ['spawn', 'target', 'parking'] },
-    { label: 'Vehicles', tools: ['object:sedan', 'object:suv', 'object:taxi'] },
-    { label: 'Buildings', tools: ['object:house', 'object:houseWide'] },
-    { label: 'Nature', tools: ['object:tree', 'object:treeSmall'] },
-    { label: 'Props & barriers', tools: ['object:cone', 'object:box', 'object:fence', 'object:sign'] },
+    ...(['Vehicles', 'Buildings', 'Nature', 'Paths & driveways', 'Props & barriers'] as const).map((category) => ({
+        label: category,
+        tools: Object.entries(ASSETS).filter(([, asset]) => asset.category === category).map(([id]): Tool => `object:${id}`)
+    })),
     { label: 'Ground surfaces', tools: ['floor', 'curb'] }
 ];
 const keyOf = (item: Selection) => `${item.kind}:${item.id}`;
@@ -27,7 +28,7 @@ const keyOf = (item: Selection) => `${item.kind}:${item.id}`;
 function initialDraft() {
     try {
         const saved = localStorage.getItem(DRAFT_KEY);
-        return { map: saved ? readMapJson(saved) : structuredClone(COURTYARD_MAP), message: saved ? 'Restored your local draft.' : 'Start with the courtyard, or create a new map.' };
+        return { map: saved ? readMapJson(saved) : structuredClone(COURTYARD_MAP), message: saved ? 'Restored your local draft.' : 'Reset to an empty lot, or load the courtyard template.' };
     } catch (error) {
         return { map: structuredClone(COURTYARD_MAP), message: `Could not restore the draft: ${error instanceof Error ? error.message : String(error)}` };
     }
@@ -37,13 +38,18 @@ function Symbol({ item }: { item: Item }) {
     const { kind, width: w, length: l, asset } = item;
     if (kind === 'zone') return <rect x={-w / 2} y={-l / 2} width={w} height={l} fill="none" stroke="#b37a38" strokeWidth="0.15" strokeDasharray="0.6 0.3" />;
     if (kind === 'road') {
-        const ports = ROAD_ASSETS[asset as RoadAsset].ports;
+        const definition = ROAD_ASSETS[asset as RoadAsset], tuning = ASSETS[asset!];
         return <>
-            <rect x={-2.5} y={-2.5} width={5} height={5} fill="#757e7b" stroke="#b7beb0" strokeWidth="0.05" />
-            {ports.map((port) => <g key={port} transform={`rotate(${-port * 90})`}>
-                <path d="M -1.75,0 V 2.5 M 1.75,0 V 2.5" stroke="#e8e5d3" strokeWidth="0.08" fill="none" />
-                <path d="M 0,0 V 2.5" stroke="#eee8be" strokeWidth="0.06" strokeDasharray="0.5 0.4" />
-            </g>)}
+            <rect x={-w / 2} y={-l / 2} width={w} height={l} fill="#757e7b" stroke="#b7beb0" strokeWidth="0.05" />
+            {definition.ports.flatMap((port) => (definition.offsets?.[port] ?? [0]).map((offset, index) => {
+                const x = port % 2 ? (port === 1 ? 1 : -1) * w / 2 : (offset - tuning.center[0]) * tuning.scale;
+                const z = port % 2 ? (offset - tuning.center[2]) * tuning.scale : (port === 0 ? 1 : -1) * l / 2;
+                const length = (port % 2 ? w : l) / 2;
+                return <g key={`${port}-${index}`} transform={`translate(${x} ${z}) rotate(${-port * 90})`}>
+                    <path d={`M -1.75,0 V ${-length} M 1.75,0 V ${-length}`} stroke="#e8e5d3" strokeWidth="0.08" fill="none" />
+                    <path d={`M 0,0 V ${-length}`} stroke="#eee8be" strokeWidth="0.06" strokeDasharray="0.5 0.4" />
+                </g>;
+            }))}
         </>;
     }
     if (kind === 'target' || kind === 'parking') return <>
@@ -59,11 +65,12 @@ function Symbol({ item }: { item: Item }) {
     </>;
     if (asset === 'cone') return <><rect x={-w / 2} y={-l / 2} width={w} height={l} fill="#c58b59" /><circle r={w / 3} fill="#edba80" /></>;
     if (asset === 'box') return <><rect x={-w / 2} y={-l / 2} width={w} height={l} fill="#b29572" stroke="#725e47" strokeWidth="0.05" /><path d={`M${-w / 2},0 H${w / 2}`} stroke="#725e47" strokeWidth="0.05" /></>;
-    if (asset === 'house' || asset === 'houseWide') return <>
+    if (asset && ASSETS[asset]?.category === 'Buildings') return <>
         <rect x={-w / 2} y={-l / 2} width={w} height={l} fill="#c2b3a0" stroke="#8f8272" strokeWidth="0.08" />
         <path d={`M0,${-l / 2} V${l / 2}`} stroke="#8f8272" strokeWidth="0.12" />
     </>;
     if (asset === 'fence' || asset === 'sign') return <rect x={-w / 2} y={-l / 2} width={w} height={l} fill="#e4dac5" stroke="#7c8170" strokeWidth="0.06" />;
+    if (asset && ASSETS[asset]?.category !== 'Vehicles') return <rect x={-w / 2} y={-l / 2} width={w} height={l} fill="#8fa16a" stroke="#496f48" strokeWidth="0.08" />;
     return <>
         <rect x={-w / 2} y={-l / 2} width={w} height={l} rx="0.22" fill={kind === 'spawn' ? '#314e43' : asset === 'taxi' ? '#cbaa63' : '#a1adb0'} stroke="#3c5148" strokeWidth="0.08" />
         <rect x={-w * 0.35} y={-l * 0.15} width={w * 0.7} height={l * 0.35} rx="0.15" fill="#dce4dd" />
@@ -81,6 +88,7 @@ export function MapBuilder({ hidden, onExit, onTestDrive }: { hidden: boolean; o
     const [tool, setTool] = useState<Tool>('select');
     const [rotation, setRotation] = useState(0);
     const [snap, setSnap] = useState(0.25);
+    const [roadSnap, setRoadSnap] = useState(5);
     const [center, setCenter] = useState<[number, number]>([0, 1]);
     const [viewWidth, setViewWidth] = useState(56);
     const [viewport, setViewport] = useState([800, 600]);
@@ -109,6 +117,12 @@ export function MapBuilder({ hidden, onExit, onTestDrive }: { hidden: boolean; o
     }, [map, allItems]);
     const validationErrors = useMemo(() => mapErrors(map), [map]);
     const isLocked = current ? locked.has(keyOf(current)) : false;
+    const layerIndex = current ? allItems.findIndex((item) => keyOf(item) === keyOf(current)) : -1;
+    function changeLayer(direction: number) {
+        if (!selected || isLocked) return;
+        edit((draft) => reorderItem(draft, selected, direction), direction > 0 ? 'Brought item forward in editor.' : 'Sent item backward in editor.');
+        setMenu(null);
+    }
     const shown = (item: Item) => drag && keyOf(drag) === keyOf(item) ? drag : item;
     const visibleItems = allItems.filter((item) => !invisible.has(keyOf(item)));
     const viewHeight = viewWidth * viewport[1] / viewport[0];
@@ -126,6 +140,27 @@ export function MapBuilder({ hidden, onExit, onTestDrive }: { hidden: boolean; o
         observer.observe(svg);
         return () => observer.disconnect();
     }, []);
+    useEffect(() => {
+        const svg = board.current;
+        if (!svg || hidden) return;
+        const zoom = (event: WheelEvent) => {
+            event.preventDefault();
+            if (gesture.current || !event.deltaY) return;
+            const rect = svg.getBoundingClientRect();
+            if (!rect.width || !rect.height) return;
+            const delta = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? rect.height : 1);
+            const nextWidth = Math.min(240, Math.max(10, viewWidth * Math.exp(Math.max(-1, Math.min(1, delta * 0.002)))));
+            const x = (event.clientX - rect.left) / rect.width - 0.5;
+            const y = (event.clientY - rect.top) / rect.height - 0.5;
+            setCenter([center[0] + x * (viewWidth - nextWidth), center[1] + y * (viewWidth - nextWidth) * rect.height / rect.width]);
+            setViewWidth(nextWidth);
+            setPointer(null);
+            setMenu(null);
+        };
+        // React wheel handlers are passive; a native listener prevents page scrolling and browser pinch zoom.
+        svg.addEventListener('wheel', zoom, { passive: false });
+        return () => svg.removeEventListener('wheel', zoom);
+    }, [hidden, center, viewWidth]);
     useEffect(() => {
         if (!menu) return;
         menuRef.current?.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus();
@@ -177,6 +212,7 @@ export function MapBuilder({ hidden, onExit, onTestDrive }: { hidden: boolean; o
     }
     function focusItem(item: Item) { setSelected({ kind: item.kind, id: item.id }); setTool('select'); setCopySource(null); setCenter([item.x, item.z]); }
     function resetEditor() {
+        gesture.current = null; setDrag(null); setRotation(0);
         setSelected(null); setTool('select'); setCopySource(null); setPointer(null); setMenu(null);
         setInvisible(new Set()); setLocked(new Set(['surface:ground']));
     }
@@ -206,7 +242,7 @@ export function MapBuilder({ hidden, onExit, onTestDrive }: { hidden: boolean; o
             else if (event.code === 'KeyV') { gesture.current = null; setDrag(null); setCopySource(null); setTool('select'); setPointer(null); board.current?.focus(); }
             else if (current && selected && !isLocked && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.code)) {
                 event.preventDefault();
-                const step = current.kind === 'road' ? 5 : snap || 0.25;
+                const step = current.kind === 'road' ? roadSnap : snap || 0.25;
                 edit((draft) => moveItem(draft, selected, current.x + (event.code === 'ArrowRight' ? step : event.code === 'ArrowLeft' ? -step : 0), current.z + (event.code === 'ArrowDown' ? step : event.code === 'ArrowUp' ? -step : 0)));
             }
         };
@@ -220,7 +256,7 @@ export function MapBuilder({ hidden, onExit, onTestDrive }: { hidden: boolean; o
         return [point.x, point.y];
     }
     function snapped(x: number, z: number, road: boolean): [number, number] {
-        if (road) return [map.grid.origin[0] + Math.round((x - map.grid.origin[0]) / 5) * 5, map.grid.origin[1] + Math.round((z - map.grid.origin[1]) / 5) * 5];
+        if (road) return [map.grid.origin[0] + Math.round((x - map.grid.origin[0]) / roadSnap) * roadSnap, map.grid.origin[1] + Math.round((z - map.grid.origin[1]) / roadSnap) * roadSnap];
         return snap ? [Math.round(x / snap) * snap, Math.round(z / snap) * snap] : [Math.round(x * 100) / 100, Math.round(z * 100) / 100];
     }
     function pointerDown(event: ReactPointerEvent<SVGSVGElement>) {
@@ -322,7 +358,12 @@ export function MapBuilder({ hidden, onExit, onTestDrive }: { hidden: boolean; o
     }
     function blank() {
         const next: MapDefinition = { schemaVersion: 1, id: 'custom-level', name: 'Untitled lot', timeLimit: 90, impactPenalty: 25, smallImpactPenalty: 10, grid: { cellSize: 5, origin: [0, 0] }, roads: [], objects: [], parkingBays: [], spawn: { position: [-5, 0, 5], heading: 0 }, bay: { x: 5, z: -5, width: 3.4, length: 5.7, heading: 0 }, surfaces: [{ id: 'ground', position: [0, -0.4, 0], size: [90, 0.5, 90], heading: 0, color: '#9eaf8a', solid: true, support: true }, { id: 'court-floor', position: [0, -0.15, 0], size: [30, 0.3, 30], heading: 0, color: '#747d7c', solid: true, support: true }] };
-        if (commit(next, 'Created a new map. Undo restores the previous draft.')) { resetEditor(); setCenter([0, 0]); setViewWidth(42); }
+        if (commit(next, 'Reset to an empty lot. Undo restores the previous draft.')) { resetEditor(); setCenter([0, 0]); setViewWidth(42); }
+    }
+    function loadCourtyardTemplate() {
+        if (commit(structuredClone(COURTYARD_MAP), 'Loaded the courtyard template. Undo restores the previous draft.')) {
+            resetEditor(); setCenter([0, 1]); setViewWidth(56);
+        }
     }
     const numeric = (label: string, key: string, value: number, step = snap || 0.25) => <label className="builder-field" key={key}><span>{label}</span><input type="number" aria-label={label} value={Math.round(value * 10000) / 10000} step={step} onChange={(event) => { if (event.target.value !== '' && Number.isFinite(event.target.valueAsNumber)) property(key, event.target.valueAsNumber); }} /></label>;
     const palette = (value: Tool) => {
@@ -379,51 +420,49 @@ export function MapBuilder({ hidden, onExit, onTestDrive }: { hidden: boolean; o
                 >{tab === 'assets' ? 'Assets' : 'Map settings'}</button>)}
             </div>
             <div id="builder-assets-panel" className="builder-sidebar-panel" role="tabpanel" aria-labelledby="builder-assets-tab" hidden={sidebarTab !== 'assets'}>
-            <p className="eyebrow">01 / PLACE</p>
             {palette('select')}
-            <input aria-label="Search assets" type="search" placeholder="Search the kit…" value={search} onChange={(e) => setSearch(e.target.value)} />
+            <input aria-label="Search assets" type="search" placeholder="Search assets…" value={search} onChange={(e) => setSearch(e.target.value)} />
             {CATEGORIES.map((category) => {
                 const tools = category.tools.filter((t) => toolLabel(t).toLowerCase().includes(search.toLowerCase()));
                 return tools.length ? <details className="asset-category" key={category.label} open><summary>{category.label}<span>{tools.length}</span></summary><div className="asset-grid">{tools.map(palette)}</div></details> : null;
             })}
-            {!CATEGORIES.some((c) => c.tools.some((t) => toolLabel(t).toLowerCase().includes(search.toLowerCase()))) && <p>No matching assets. Try another name.</p>}
-            <details className="scene-list"><summary>Scene list · {allItems.length}</summary>{allItems.map((item) => <div key={keyOf(item)}><button aria-label={`Focus ${item.id}`} onClick={() => focusItem(item)}>{item.id}</button><button aria-label={`Lock ${item.id}`} aria-pressed={locked.has(keyOf(item))} onClick={() => toggle(setLocked, locked, keyOf(item))}>L</button><button aria-label={`Hide ${item.id}`} aria-pressed={invisible.has(keyOf(item))} onClick={() => toggle(setInvisible, invisible, keyOf(item))}>H</button></div>)}<p>L locks · H hides in editor only</p></details>
+            {!CATEGORIES.some((c) => c.tools.some((t) => toolLabel(t).toLowerCase().includes(search.toLowerCase()))) && <p>No matching assets.</p>}
+            <details className="scene-list"><summary>Scene list · {allItems.length}</summary>{[...allItems].reverse().map((item) => <div key={keyOf(item)}><button aria-label={`Focus ${item.id}`} onClick={() => focusItem(item)}>{item.id}</button><button aria-label={`Lock ${item.id}`} aria-pressed={locked.has(keyOf(item))} onClick={() => toggle(setLocked, locked, keyOf(item))}>L</button><button aria-label={`Hide ${item.id}`} aria-pressed={invisible.has(keyOf(item))} onClick={() => toggle(setInvisible, invisible, keyOf(item))}>H</button></div>)}<p>Frontmost first · L locks · H hides in editor only</p></details>
             </div>
             <div id="builder-settings-panel" className="builder-sidebar-panel" role="tabpanel" aria-labelledby="builder-settings-tab" hidden={sidebarTab !== 'settings'}>
                 <MapSettings map={map} edit={edit} />
-                <div className="builder-map-settings"><h2>Player vehicle</h2><div className="vehicle-picker">{(['sedan', 'suv', 'taxi'] as PlayerVehicle[]).map((vehicle) => <button key={vehicle} aria-label={`Drive ${vehicle}`} aria-pressed={(map.playerVehicle ?? 'sedan') === vehicle} className={(map.playerVehicle ?? 'sedan') === vehicle ? 'is-active' : ''} onClick={() => edit((draft) => { draft.playerVehicle = vehicle; }, `Player vehicle: ${vehicle}.`)}><img src={PREVIEWS[vehicle]} alt="" /><span>{vehicle === 'suv' ? 'SUV' : vehicle === 'taxi' ? 'Taxi' : 'Sedan'}</span></button>)}</div><p>Vehicle dimensions affect collisions and parking. A smaller target bay must be resized before changing cars.</p>
+                <div className="builder-map-settings"><h2>Player vehicle</h2><div className="vehicle-picker">{PLAYER_VEHICLES.map((vehicle) => <button key={vehicle} aria-label={`Drive ${vehicle}`} aria-pressed={(map.playerVehicle ?? 'sedan') === vehicle} className={(map.playerVehicle ?? 'sedan') === vehicle ? 'is-active' : ''} onClick={() => edit((draft) => { draft.playerVehicle = vehicle; }, `Player vehicle: ${VEHICLE_TUNING[vehicle].label}.`)}><img src={PREVIEWS[vehicle]} alt="" /><span>{VEHICLE_TUNING[vehicle].label}</span></button>)}</div><p>The target bay must fit the selected vehicle.</p>
                     <h2>Playable zone</h2><button onClick={() => {
                         if (!map.playableZone && !edit((draft) => { draft.playableZone = { x: 0, z: 0, width: 30, length: 30 }; }, 'Added a solid playable boundary.')) return;
                         setSelected({ kind: 'zone', id: 'playable-zone' }); setTool('select');
-                    }}>{map.playableZone ? 'Edit playable zone' : 'Add playable zone'}</button><p>Drag its corners to resize. Visible barriers keep the car inside during Test drive.</p>
+                    }}>{map.playableZone ? 'Edit playable zone' : 'Add playable zone'}</button><p>Drag corners to resize. Barriers contain the car in Test drive.</p>
                 </div>
-                <div className="builder-warnings" role="status"><strong>Level validation</strong>{!validationErrors.length && !warnings.length && <p>No issues found. Test drive to check your route.</p>}{[...validationErrors, ...warnings].map((warning) => {
+                <div className="builder-warnings" role="status"><strong>Level validation</strong>{!validationErrors.length && !warnings.length && <p>No issues found.</p>}{[...validationErrors, ...warnings].map((warning) => {
                     const item = allItems.find((i) => warning.startsWith(i.id + ':') || warning.startsWith(i.id + ' and') || i.kind === 'spawn' && warning.startsWith('Player spawn') || i.kind === 'target' && warning.startsWith('Target bay'));
                     return <p key={warning}>{item ? <button onClick={() => focusItem(item)}>{warning}</button> : warning}</p>;
-                })}{validationErrors.length > 0 && <p>Resolve boundary errors to enable Test drive.</p>}</div>
+                })}{validationErrors.length > 0 && <p>Fix boundary errors to Test drive.</p>}</div>
             </div>
-            <div className="builder-files"><button onClick={blank}>New map</button><button onClick={() => { if (commit(structuredClone(COURTYARD_MAP), 'Restored the supplied courtyard. Undo restores your draft.')) resetEditor(); }}>Load courtyard</button><button onClick={() => fileInput.current?.click()}>Import JSON</button><button onClick={exportFile}>Export JSON</button></div>
+            <div className="builder-files"><button onClick={blank} title="Start from an empty lot with only the ground, spawn and target bay. Undo restores your draft.">Reset map</button><button onClick={loadCourtyardTemplate} title="Replace the draft with the supplied courtyard template. Undo restores your draft.">Load courtyard template</button><button onClick={() => fileInput.current?.click()}>Import JSON</button><button onClick={exportFile}>Export JSON</button></div>
             <input ref={fileInput} type="file" accept=".json,application/json" aria-label="Import level file" className="builder-file-input" onChange={(e) => { const file = e.target.files?.[0]; if (file) void importFile(file); e.target.value = ''; }} />
         </aside>
         <div className="builder-workspace">
-            <div className="builder-toolbar"><div><button disabled={!history.past.length} onClick={undo} title="Ctrl / Cmd + Z">Undo</button><button disabled={!history.future.length} onClick={redo} title="Ctrl / Cmd + Shift + Z">Redo</button><span className="toolbar-divider" /><button onClick={rotate} disabled={tool === 'select' && (!current || isLocked || current.kind === 'zone')}>Rotate 90°</button></div><label>Prop snap <select aria-label="Prop snap" value={snap} onChange={(e) => setSnap(Number(e.target.value))}><option value="0.25">0.25 m</option><option value="0.5">0.5 m</option><option value="1">1 m</option><option value="0">Off</option></select></label></div>
+            <div className="builder-toolbar"><div><button disabled={!history.past.length} onClick={undo} title="Ctrl / Cmd + Z">Undo</button><button disabled={!history.future.length} onClick={redo} title="Ctrl / Cmd + Shift + Z">Redo</button><span className="toolbar-divider" /><button onClick={rotate} disabled={tool === 'select' && (!current || isLocked || current.kind === 'zone')}>Rotate 90°</button></div><label>Road snap <select aria-label="Road snap" value={roadSnap} onChange={(e) => setRoadSnap(Number(e.target.value))}><option value="5">5 m</option><option value="1.25">1.25 m</option></select></label><label>Prop snap <select aria-label="Prop snap" value={snap} onChange={(e) => setSnap(Number(e.target.value))}><option value="0.25">0.25 m</option><option value="0.5">0.5 m</option><option value="1">1 m</option><option value="0">Off</option></select></label></div>
             <div className="builder-board">
                 <div className="board-caption"><span className="eyebrow">TOP VIEW · METRES</span><strong>{copySource ? 'Click to place duplicate · Esc cancels' : toolLabel(tool)}{tool !== 'select' ? ` / ${rotation}°` : ''}</strong></div>
                 <svg ref={board} tabIndex={0} role="img" aria-label="Level drafting grid" viewBox={`${center[0] - viewWidth / 2} ${center[1] - viewHeight / 2} ${viewWidth} ${viewHeight}`} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={() => { gesture.current = null; setDrag(null); }} onPointerLeave={() => setPointer(null)} onContextMenu={(e) => {
                     e.preventDefault();
                     const element = e.target instanceof Element ? e.target.closest<SVGGElement>('[data-item-id]') : null;
                     const item = element && allItems.find((i) => i.id === element.dataset.itemId && i.kind === element.dataset.kind);
-                    if (!item) { setMenu(null); return; }
-                    setSelected({ id: item.id, kind: item.kind }); setTool('select');
+                    if (!item && !current) { setMenu(null); return; }
+                    if (item) setSelected({ id: item.id, kind: item.kind });
+                    setTool('select'); setCopySource(null);
                     setMenu({ x: Math.max(8, Math.min(e.clientX, window.innerWidth - 196)), y: Math.max(8, Math.min(e.clientY, window.innerHeight - 275)) });
                 }}>
                     <defs><pattern id="workshop-small-grid" width="1" height="1" patternUnits="userSpaceOnUse"><path d="M 1 0 H 0 V 1" fill="none" stroke="#526b4930" strokeWidth="0.025" /></pattern><pattern id="workshop-road-grid" x={map.grid.origin[0] - 2.5} y={map.grid.origin[1] - 2.5} width="5" height="5" patternUnits="userSpaceOnUse"><path d="M 5 0 H 0 V 5" fill="none" stroke="#344b4570" strokeWidth="0.045" /></pattern></defs>
                     <rect x={center[0] - viewWidth / 2} y={center[1] - viewHeight / 2} width={viewWidth} height={viewHeight} fill="#bcc7ad" />
-                    {visibleItems.filter((i) => i.kind === 'surface').map(shown).map((i) => <g key={`${i.kind}:${i.id}`} data-item-id={i.id} data-kind={i.kind} transform={`translate(${i.x} ${i.z}) rotate(${-i.heading})`}><Symbol item={i} /></g>)}
                     <g pointerEvents="none"><rect x={center[0] - viewWidth / 2} y={center[1] - viewHeight / 2} width={viewWidth} height={viewHeight} fill="url(#workshop-small-grid)" /><rect x={center[0] - viewWidth / 2} y={center[1] - viewHeight / 2} width={viewWidth} height={viewHeight} fill="url(#workshop-road-grid)" /><path d={`M${center[0] - viewWidth / 2},0 H${center[0] + viewWidth / 2} M0,${center[1] - viewHeight / 2} V${center[1] + viewHeight / 2}`} stroke="#47635366" strokeWidth="0.035" /></g>
-                    {visibleItems.filter((i) => !['surface', 'zone'].includes(i.kind)).map(shown).map((i) => <g key={`${i.kind}:${i.id}`} data-item-id={i.id} data-kind={i.kind} transform={`translate(${i.x} ${i.z}) rotate(${-i.heading})`}><Symbol item={i} /></g>)}
+                    {visibleItems.map(shown).map((i) => <g key={`${i.kind}:${i.id}`} data-item-id={i.id} data-kind={i.kind} transform={`translate(${i.x} ${i.z}) rotate(${-i.heading})`}><Symbol item={i} /></g>)}
                     {map.playableZone && <g pointerEvents="none"><path fill="#273c3340" fillRule="evenodd" d={`M${center[0] - viewWidth / 2},${center[1] - viewHeight / 2} h${viewWidth} v${viewHeight} h${-viewWidth} Z M${map.playableZone.x - map.playableZone.width / 2},${map.playableZone.z - map.playableZone.length / 2} h${map.playableZone.width} v${map.playableZone.length} h${-map.playableZone.width} Z`} /></g>}
-                    {visibleItems.filter((i) => i.kind === 'zone').map(shown).map((i) => <g key={i.id} data-item-id={i.id} data-kind={i.kind} transform={`translate(${i.x} ${i.z})`}><Symbol item={i} /></g>)}
                     {active && !invisible.has(keyOf(active)) && <g transform={`translate(${active.x} ${active.z}) rotate(${-active.heading})`}>
                         <rect pointerEvents="none" x={-active.width / 2 - 0.15} y={-active.length / 2 - 0.15} width={active.width + 0.3} height={active.length + 0.3} fill="none" stroke="#f9f6cf" strokeWidth="0.13" strokeDasharray="0.4 0.2" />
                         {!isLocked && active.kind !== 'zone' && <><path pointerEvents="none" d={`M0,${-active.length / 2} V${-active.length / 2 - handleSize * 4}`} stroke="#273c33" strokeWidth={handleSize / 4} /><circle role="button" aria-label="Rotation handle" data-handle="rotate" cx="0" cy={-active.length / 2 - handleSize * 4} r={handleSize} fill="#f6f4e9" stroke="#273c33" strokeWidth={handleSize / 4} /></>}
@@ -442,11 +481,11 @@ export function MapBuilder({ hidden, onExit, onTestDrive }: { hidden: boolean; o
                     }
                 }}>
                     <strong>{current.id}</strong>
-                    <button role="menuitem" onClick={() => { setMenu(null); board.current?.focus(); }}>Select</button>
-                    <button role="menuitem" disabled={isLocked || ['spawn', 'target', 'zone'].includes(current.kind)} onClick={() => { duplicate(); setMenu(null); }}>Duplicate</button>
-                    <button role="menuitem" disabled={isLocked || ['spawn', 'target', 'zone'].includes(current.kind)} onClick={duplicateAndPlace}>Duplicate & place</button>
-                    <button role="menuitem" disabled={isLocked || current.kind === 'zone'} onClick={() => { rotate(); setMenu(null); }}>Rotate 90°</button>
-                    <button role="menuitem" onClick={() => { focusItem(current); setMenu(null); }}>Focus</button>
+                    <button role="menuitem" onClick={() => { setSelected(null); setMenu(null); board.current?.focus(); }}>Deselect</button>
+                    <button role="menuitem" disabled={isLocked || layerIndex === allItems.length - 1} onClick={() => changeLayer(1)}>Bring forward</button>
+                    <button role="menuitem" disabled={isLocked || layerIndex <= 0} onClick={() => changeLayer(-1)}>Send backward</button>
+                    <button role="menuitem" onClick={() => { toggle(setLocked, locked, keyOf(current)); setMenu(null); }}>{isLocked ? 'Unlock' : 'Lock'}</button>
+                    <button role="menuitem" onClick={() => { toggle(setInvisible, invisible, keyOf(current)); setMenu(null); }}>{invisible.has(keyOf(current)) ? 'Show in editor' : 'Hide in editor'}</button>
                     <button role="menuitem" disabled={isLocked || ['spawn', 'target'].includes(current.kind)} onClick={() => { remove(); setMenu(null); }}>Delete</button>
                 </div>}
                 <div className="board-navigation"><span>+Z ↓ <i /> +X →</span><div><button aria-label="Zoom out" onClick={() => setViewWidth((w) => Math.min(240, w * 1.25))}>−</button><button onClick={fit}>Fit map</button><button aria-label="Zoom in" onClick={() => setViewWidth((w) => Math.max(10, w / 1.25))}>+</button></div></div>
@@ -454,7 +493,7 @@ export function MapBuilder({ hidden, onExit, onTestDrive }: { hidden: boolean; o
             <div className="builder-help"><span>Drag to move · Handles rotate / resize · Right-click for actions</span><span>Alt / middle drag to pan · R rotate · Delete remove · Esc cancel</span></div>
         </div>
         <aside className="builder-inspector" aria-label="Selection inspector">
-            <p className="eyebrow">02 / INSPECT</p>
+            <p className="eyebrow">INSPECTOR</p>
             <label className="builder-field"><span>Scene item</span><select aria-label="Scene item" value={current ? `${current.kind}:${current.id}` : ''} onChange={(e) => { const i = allItems.find((i) => `${i.kind}:${i.id}` === e.target.value); setSelected(i ? { kind: i.kind, id: i.id } : null); setTool('select'); }}><option value="">No selection</option>{allItems.map((i) => <option key={`${i.kind}:${i.id}`} value={`${i.kind}:${i.id}`}>{i.id}</option>)}</select></label>
             {current ? <>
                 <h2>{current.asset ? PROP_LABELS[current.asset] || ROAD_ASSETS[current.asset as RoadAsset]?.label : current.kind === 'target' ? 'Target bay' : current.kind === 'spawn' ? 'Player spawn' : current.kind === 'parking' ? 'Parking bay' : current.kind === 'zone' ? 'Playable zone' : 'Surface'}</h2>
@@ -462,7 +501,7 @@ export function MapBuilder({ hidden, onExit, onTestDrive }: { hidden: boolean; o
                 <label className="builder-checkbox"><input aria-label="Lock selected item" type="checkbox" checked={isLocked} onChange={() => toggle(setLocked, locked, keyOf(current))} />Lock in editor</label>
                 <label className="builder-checkbox"><input aria-label="Hide selected item" type="checkbox" checked={invisible.has(keyOf(current))} onChange={() => toggle(setInvisible, invisible, keyOf(current))} />Hide in editor only</label>
                 <fieldset className="builder-properties" disabled={isLocked}>
-                <div className="builder-field-grid">{road ? <>{numeric('Column', 'column', road.cell[0], 1)}{numeric('Row', 'row', road.cell[1], 1)}</> : <>{numeric('X (m)', 'x', current.x)}{numeric('Z (m)', 'z', current.z)}</>}
+                <div className="builder-field-grid">{road ? <>{numeric('Column', 'column', road.cell[0], 0.25)}{numeric('Row', 'row', road.cell[1], 0.25)}</> : <>{numeric('X (m)', 'x', current.x)}{numeric('Z (m)', 'z', current.z)}</>}
                     {['object', 'surface', 'spawn'].includes(current.kind) && numeric('Y (m)', 'y', current.y)}
                     {['target', 'parking', 'surface', 'zone'].includes(current.kind) && <>{numeric('Width (m)', 'width', current.width)}{numeric('Length (m)', 'length', current.length)}</>}
                     {current.height !== undefined && numeric('Height (m)', 'height', current.height, 0.05)}
@@ -471,10 +510,11 @@ export function MapBuilder({ hidden, onExit, onTestDrive }: { hidden: boolean; o
                 {current.kind === 'object' && <><div className="builder-field"><span>Physics</span><strong>{current.body === 'dynamic' ? 'Movable prop' : current.body === 'static' ? 'Static obstacle' : 'Decoration'}</strong></div>{current.body === 'dynamic' && numeric('Mass (kg)', 'mass', current.mass ?? 1000, 1)}</>}
                 {current.kind === 'surface' && <><label className="builder-field"><span>Color</span><input aria-label="Surface color" type="color" value={current.color} onChange={(e) => property('color', e.target.value)} /></label><label className="builder-checkbox"><input type="checkbox" checked={current.solid} onChange={(e) => property('solid', e.target.checked)} />Solid collider</label><label className="builder-checkbox"><input type="checkbox" checked={current.support} onChange={(e) => property('support', e.target.checked)} />Driving surface</label></>}
                 {current.kind === 'parking' && <label className="builder-checkbox"><input type="checkbox" checked={current.wheelStop} onChange={(e) => property('wheelStop', e.target.checked)} />Wheel stop</label>}
-                {current.kind === 'object' && <p className="asset-size-note">Default calibrated size · models are not stretched.</p>}
-                <div className="inspector-actions"><button disabled={['spawn', 'target', 'zone'].includes(current.kind)} onClick={duplicate}>Duplicate</button><button disabled={['spawn', 'target'].includes(current.kind)} onClick={remove}>Delete</button></div>
+                {current.kind === 'object' && <p className="asset-size-note">Fixed model size</p>}
+                <div className="inspector-actions"><button disabled={layerIndex === allItems.length - 1} onClick={() => changeLayer(1)}>Bring forward</button><button disabled={layerIndex <= 0} onClick={() => changeLayer(-1)}>Send backward</button></div>
+                <div className="inspector-actions"><button disabled={['spawn', 'target', 'zone'].includes(current.kind)} onClick={duplicate}>Duplicate</button><button disabled={['spawn', 'target', 'zone'].includes(current.kind)} onClick={duplicateAndPlace}>Duplicate & place</button><button disabled={['spawn', 'target'].includes(current.kind)} onClick={remove}>Delete</button></div>
                 </fieldset>
-            </> : <div className="inspector-empty"><span aria-hidden="true">↖</span><h2>No item selected.</h2><p>Select an element on the canvas or in the scene list to inspect its properties.</p></div>}
+            </> : <div className="inspector-empty"><span aria-hidden="true">↖</span><h2>No selection</h2><p>Select an item on the map or scene list.</p></div>}
         </aside>
         <footer className="builder-status"><span className={error ? 'builder-error' : ''} role={error ? 'alert' : 'status'}>{error || message}</span><span>{map.roads.length} roads · {map.objects.length} props <i /> {saved}</span></footer>
     </section>;

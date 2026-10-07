@@ -16,6 +16,7 @@ function fingerprint(map: MapDefinition) {
     delete gameplay.difficulty;
     delete gameplay.challenge;
     delete gameplay.campaignOrder;
+    delete gameplay.editorOrder;
     let hash = 2166136261;
     for (const character of JSON.stringify(gameplay)) hash = Math.imul(hash ^ character.charCodeAt(0), 16777619);
     return (hash >>> 0).toString(16);

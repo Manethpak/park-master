@@ -21,6 +21,7 @@
         "playcanvas": "^2.22.6",
         "react": "^19.3.0",
         "react-dom": "^19.3.0",
+        "react-router-dom": "^7.18.4",
         "sync-ammo": "^0.1.2"
     },
     "devDependencies": {
