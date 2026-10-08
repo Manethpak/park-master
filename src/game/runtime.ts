@@ -33,6 +33,7 @@ export class ParkingRuntime {
     private velocity = new Vec3();
     private angular = new Vec3();
     private previousPhase: GamePhase;
+    private previousControlMode: ParkingGame['controlMode'];
     private lastClock = performance.now();
     private unsubscribe: () => void;
 
@@ -44,6 +45,7 @@ export class ParkingRuntime {
         this.bodies = bodies;
         this.canvas = app.graphicsDevice.canvas as HTMLCanvasElement;
         this.previousPhase = game.session.phase;
+        this.previousControlMode = game.controlMode;
         app.scene.ambientLight = new Color(0.66, 0.71, 0.77);
         app.scene.exposure = 1;
         app.maxDeltaTime = 0.1;
@@ -54,7 +56,7 @@ export class ParkingRuntime {
         app.graphicsDevice.maxPixelRatio = Math.min(window.devicePixelRatio, 2);
         app.resizeCanvas();
         this.canvas.tabIndex = 0;
-        this.canvas.setAttribute('aria-label', 'Parking game. W and S or touch pedals drive, mouse or touch arrows steer, Space or Stop brakes.');
+        this.canvas.setAttribute('aria-label', 'Parking game. W and S or touch pedals drive. Steering uses A/D or left/right arrows in Buttons mode, mouse or touch slider in Precise steering mode. Space or Stop brakes.');
         window.addEventListener('keydown', this.keyDown);
         window.addEventListener('keyup', this.keyUp);
         window.addEventListener('blur', this.blur);
@@ -69,7 +71,7 @@ export class ParkingRuntime {
 
     private clearInput = () => {
         this.keys.clear();
-        this.game.touchControls.clear();
+        this.game.clearTouchInput();
         this.steeringInput = 0;
     };
     private focusCanvas = () => this.canvas.focus();
@@ -86,7 +88,7 @@ export class ParkingRuntime {
 
     private keyDown = (event: KeyboardEvent) => {
         if (this.isUi(event.target) && !['Escape', 'KeyR'].includes(event.code)) return;
-        if (['KeyW', 'KeyS', 'ArrowUp', 'ArrowDown', 'Space', 'Escape', 'KeyR'].includes(event.code))
+        if (['KeyW', 'KeyS', 'KeyA', 'KeyD', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space', 'Escape', 'KeyR'].includes(event.code))
             event.preventDefault();
         if (event.code === 'Escape' && !event.repeat) {
             this.clearInput();
@@ -102,7 +104,7 @@ export class ParkingRuntime {
         this.keys.delete(event.code);
     };
     private pointerMove = (event: PointerEvent) => {
-        if (event.pointerType === 'touch') return;
+        if (event.pointerType === 'touch' || this.game.controlMode !== 'precise' || this.game.session.phase !== 'playing') return;
         if (this.isUi(event.target)) {
             this.steeringInput = 0;
             return;
@@ -120,6 +122,10 @@ export class ParkingRuntime {
 
     private syncPhase = () => {
         const phase = this.game.session.phase;
+        if (this.previousControlMode !== this.game.controlMode) {
+            this.clearInput();
+            this.previousControlMode = this.game.controlMode;
+        }
         this.app.timeScale = phase === 'playing' ? 1 : 0;
         if (phase !== this.previousPhase) {
             this.clearInput();
@@ -175,8 +181,12 @@ export class ParkingRuntime {
             const reverse = this.keys.has('KeyS') || this.keys.has('ArrowDown') || touch.has('reverse');
             const throttle = Number(forward) - Number(reverse);
             const speed = stepSpeed(longitudinal, throttle, this.keys.has('Space') || touch.has('stop'), dt);
-            const touchSteering = Number(touch.has('right')) - Number(touch.has('left'));
-            this.steering = stepSteering(this.steering, touch.size ? touchSteering : this.steeringInput, dt);
+            const left = this.keys.has('KeyA') || this.keys.has('ArrowLeft') || touch.has('left');
+            const right = this.keys.has('KeyD') || this.keys.has('ArrowRight') || touch.has('right');
+            const steeringInput = this.game.controlMode === 'buttons'
+                ? Number(right) - Number(left)
+                : this.game.touchSteering ?? this.steeringInput;
+            this.steering = stepSteering(this.steering, steeringInput, dt);
             const grip = Math.exp(-DRIVING.lateralGrip * dt);
             body.linearVelocity = this.velocity.set(
                 fx * speed + (body.linearVelocity.x - fx * longitudinal) * grip,

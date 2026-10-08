@@ -1,4 +1,5 @@
 import type { ParkingGame } from '../game/session.ts';
+import type { ControlMode } from '../game/controls.ts';
 import type { GameSession } from '../game/types.ts';
 import { DIFFICULTY_LABELS, scoreStars } from '../game/campaign.ts';
 import { Stars } from './Stars.tsx';
@@ -56,7 +57,7 @@ function RouteMap() {
     );
 }
 
-export function DesktopControls() {
+export function DesktopControls({ controlMode = 'precise' }: { controlMode?: ControlMode }) {
     return (
         <div className="controls">
             <div>
@@ -67,11 +68,11 @@ export function DesktopControls() {
                 <span>Drive / reverse</span>
             </div>
             <div>
-                <svg viewBox="0 0 20 24" fill="none" aria-hidden="true">
+                {controlMode === 'buttons' ? <span className="key-pair"><kbd>←</kbd><kbd>→</kbd></span> : <svg viewBox="0 0 20 24" fill="none" aria-hidden="true">
                     <rect x="4" y="2" width="12" height="19" rx="6" stroke="currentColor" strokeWidth="1.5" />
                     <path d="M10 2v7" stroke="currentColor" strokeWidth="1.5" />
-                </svg>
-                <span>Mouse near center to steer</span>
+                </svg>}
+                <span>{controlMode === 'buttons' ? 'A / D or arrows to steer' : 'Mouse near center to steer'}</span>
             </div>
             <div>
                 <kbd className="wide-key">SPACE</kbd>
@@ -134,7 +135,7 @@ function Overlay({ state, game, retry, onBuilder, onCampaign, bestScore, onNext,
                         Park in the <strong>green bay</strong> · Face the arrow · Stop for 1s
                     </p>
                 </div>
-                <DesktopControls />
+                <DesktopControls controlMode={game.controlMode} />
                 <button className="primary-button" onClick={start}>
                     Start
                     <Arrow />
@@ -336,7 +337,7 @@ export function DesktopHud({ game, state, retry, onBuilder, onCampaign, testing,
                     </footer>
                     {playing && (
                         <div className="compact-controls">
-                            <DesktopControls />
+                            <DesktopControls controlMode={game.controlMode} />
                         </div>
                     )}
                 </>

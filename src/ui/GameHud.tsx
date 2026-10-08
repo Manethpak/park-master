@@ -13,7 +13,7 @@ export function GameHud(props: GameHudProps) {
     const [settingsRequested, setSettingsRequested] = useState(false);
     const settingsVisible = (settingsRequested || state.phase === 'paused') && !['loading', 'error'].includes(state.phase);
 
-    useEffect(() => { game.touchControls.clear(); }, [game, mobile, portrait]);
+    useEffect(() => { game.clearTouchInput(); }, [game, mobile, portrait]);
     useEffect(() => { setSettingsRequested(false); }, [game]);
     useEffect(() => {
         if (state.phase === 'playing') setSettingsRequested(false);
@@ -23,7 +23,7 @@ export function GameHud(props: GameHudProps) {
     }, [mobile, state.phase, showTips, dismissTips]);
 
     const openSettings = () => {
-        game.touchControls.clear();
+        game.clearTouchInput();
         game.pause();
         setSettingsRequested(true);
     };
@@ -44,13 +44,15 @@ export function GameHud(props: GameHudProps) {
         {settingsVisible && <GameSettings
             title={settingsRequested ? 'Settings' : 'Paused'}
             mobile={mobile}
+            controlMode={game.controlMode}
+            onControlMode={game.setControlMode}
             resumeLabel={state.phase === 'paused' ? 'Resume' : 'Close settings'}
             onClose={closeSettings}
             onRestart={restart}
             onLeave={props.testing ? props.onBuilder : props.onCampaign}
             leaveLabel={props.testing ? 'Back to builder' : 'Level select'}
             onFullscreen={mobile ? () => void enterLandscape() : undefined}
-            renderHelp={(closeHelp) => mobile ? <MobileTips onDismiss={() => { dismissTips(); closeHelp(); }} /> : <DesktopControls />}
+            renderHelp={(closeHelp) => mobile ? <MobileTips controlMode={game.controlMode} onDismiss={() => { dismissTips(); closeHelp(); }} /> : <DesktopControls controlMode={game.controlMode} />}
         />}
     </>;
 }

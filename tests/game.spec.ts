@@ -73,6 +73,66 @@ async function start(page: Page) {
     await page.mouse.move(canvas.x + canvas.width / 2, canvas.y + canvas.height / 2);
 }
 
+async function chooseControls(page: Page, mode: 'Buttons' | 'Precise steering') {
+    await page.getByRole('button', { name: 'Settings', exact: true }).click();
+    const button = page.getByRole('button', { name: mode, exact: true });
+    await button.click();
+    await expect(button).toHaveAttribute('aria-pressed', 'true');
+    await page.getByRole('button', { name: 'Resume', exact: true }).click();
+    await expect(page.locator('.game-shell canvas')).toBeFocused();
+}
+
+test('desktop button steering ignores mouse, centers on release and saves the setting', async ({ page }) => {
+    await start(page);
+    await chooseControls(page, 'Buttons');
+    const initial = await snapshot(page);
+    const canvas = (await page.locator('.game-shell canvas').boundingBox())!;
+    await page.mouse.move(canvas.x + canvas.width / 2 + 240, canvas.y + canvas.height / 2);
+    await expect.poll(async () => Math.abs((await snapshot(page)).steering)).toBeLessThan(0.01);
+    for (const key of ['ArrowLeft', 'a', 'ArrowRight', 'd']) {
+        await page.keyboard.down(key);
+        await expect.poll(async () => (await snapshot(page)).steering * (['a', 'ArrowLeft'].includes(key) ? -1 : 1)).toBeGreaterThan(0.98);
+        expect((await snapshot(page)).heading).toBeCloseTo(initial.heading, 2);
+        expect((await snapshot(page)).hasMoved).toBe(false);
+        await page.keyboard.up(key);
+        await expect.poll(async () => Math.abs((await snapshot(page)).steering)).toBeLessThan(0.01);
+    }
+    await page.keyboard.down('w');
+    await page.keyboard.down('d');
+    await expect.poll(async () => Math.abs((await snapshot(page)).heading - initial.heading)).toBeGreaterThan(3);
+    await page.keyboard.press('Escape');
+    await page.keyboard.up('w');
+    await page.keyboard.up('d');
+    await page.getByRole('button', { name: 'Resume', exact: true }).click();
+    await expect.poll(async () => Math.abs((await snapshot(page)).steering)).toBeLessThan(0.01);
+    await expect.poll(async () => (await snapshot(page)).speed).toBeLessThan(0.05);
+    await page.reload();
+    await page.getByRole('button', { name: 'Start', exact: true }).click();
+    await page.getByRole('button', { name: 'Settings', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Buttons', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await page.getByRole('button', { name: 'Precise steering', exact: true }).click();
+    await page.getByRole('button', { name: 'Resume', exact: true }).click();
+    await page.keyboard.down('d');
+    await expect.poll(async () => Math.abs((await snapshot(page)).steering)).toBeLessThan(0.01);
+    await page.keyboard.up('d');
+    await page.mouse.move(canvas.x + canvas.width / 2 + 120, canvas.y + canvas.height / 2);
+    await expect.poll(async () => (await snapshot(page)).steering).toBeGreaterThan(0.45);
+    expect((await snapshot(page)).steering).toBeLessThan(0.55);
+});
+
+test('control settings remain usable when local storage is blocked', async ({ page }) => {
+    await page.addInitScript(() => {
+        Storage.prototype.getItem = () => { throw new DOMException('Blocked', 'SecurityError'); };
+        Storage.prototype.setItem = () => { throw new DOMException('Blocked', 'SecurityError'); };
+    });
+    await start(page);
+    await chooseControls(page, 'Buttons');
+    await page.keyboard.down('a');
+    await expect.poll(async () => (await snapshot(page)).steering).toBeLessThan(-0.98);
+    await page.keyboard.up('a');
+    await chooseControls(page, 'Precise steering');
+});
+
 test('routes support history, direct campaign links, fresh attempts and persistent physics ownership', async ({ page }) => {
     const errors: string[] = [];
     page.on('pageerror', (error) => errors.push(error.message));
@@ -225,6 +285,61 @@ test('menu wrapper switches device-specific components without changing desktop 
 
 test.describe('mobile driving', () => {
     test.use({ viewport: { width: 844, height: 390 }, hasTouch: true });
+
+    for (const viewport of [{ width: 844, height: 390 }, { width: 390, height: 844 }]) {
+        test(`precise touch steering supports pedals, cancellation and saved modes at ${viewport.width}px`, async ({ page, context }) => {
+            await page.setViewportSize(viewport);
+            await start(page);
+            await chooseControls(page, 'Precise steering');
+            const slider = page.getByRole('slider', { name: 'Steering', exact: true });
+            await expect(slider).toBeVisible();
+            await expect(page.getByRole('button', { name: 'Steer left', exact: true })).toHaveCount(0);
+            const box = (await slider.boundingBox())!;
+            expect(box.height).toBeGreaterThanOrEqual(44);
+            expect(box.x).toBeGreaterThanOrEqual(0);
+            expect(box.x + box.width).toBeLessThanOrEqual(viewport.width);
+            expect(box.y + box.height).toBeLessThanOrEqual(viewport.height);
+            const client = await context.newCDPSession(page);
+            let steer = { x: box.x + box.width * 0.75, y: box.y + box.height / 2, id: 1 };
+            await client.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [steer] });
+            await expect.poll(async () => (await snapshot(page)).steering).toBeGreaterThan(0.45);
+            expect((await snapshot(page)).steering).toBeLessThan(0.55);
+            expect((await snapshot(page)).hasMoved).toBe(false);
+            const initial = await snapshot(page);
+            const pedal = (await page.getByRole('button', { name: 'Accelerate', exact: true }).boundingBox())!;
+            const drive = { x: pedal.x + pedal.width / 2, y: pedal.y + pedal.height / 2, id: 2 };
+            await client.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [steer, drive] });
+            await expect.poll(async () => Math.abs((await snapshot(page)).heading - initial.heading)).toBeGreaterThan(3);
+            expect((await snapshot(page)).steering).toBeGreaterThan(0.45);
+            steer = { ...steer, x: box.x + box.width * 0.25 };
+            await client.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [steer, drive] });
+            await expect.poll(async () => (await snapshot(page)).steering).toBeLessThan(-0.45);
+            await client.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [steer] });
+            await expect(slider).toHaveValue('0');
+            await expect.poll(async () => Math.abs((await snapshot(page)).steering)).toBeLessThan(0.01);
+            expect((await snapshot(page)).speed).toBeGreaterThan(0.1);
+            await client.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
+            await expect.poll(async () => (await snapshot(page)).speed).toBeLessThan(0.05);
+            await client.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [steer] });
+            await expect.poll(async () => (await snapshot(page)).steering).toBeLessThan(-0.45);
+            await client.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
+            await expect(slider).toHaveValue('0');
+            await expect.poll(async () => Math.abs((await snapshot(page)).steering)).toBeLessThan(0.01);
+            await client.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [steer] });
+            await expect.poll(async () => (await snapshot(page)).steering).toBeLessThan(-0.45);
+            await page.setViewportSize({ width: viewport.height, height: viewport.width });
+            await expect(slider).toHaveValue('0');
+            await expect.poll(async () => Math.abs((await snapshot(page)).steering)).toBeLessThan(0.01);
+            await client.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
+            await page.reload();
+            // Mobile tile launches retain quickStart in history state on reload.
+            await expect(slider).toBeVisible();
+            expect((await snapshot(page)).phase).toBe('playing');
+            await chooseControls(page, 'Buttons');
+            await expect(slider).toHaveCount(0);
+            await expect(page.getByRole('button', { name: 'Steer left', exact: true })).toBeVisible();
+        });
+    }
 
     test('touch pedals support simultaneous steering, stopping, reverse and cancelled touches', async ({ page, context }) => {
         const errors: string[] = [];
@@ -758,6 +873,7 @@ for (const width of [900, 1600]) {
     test(`steering uses a compact range at ${width}px and leaves a stationary car and score unchanged`, async ({ page }) => {
         await page.setViewportSize({ width, height: 800 });
         await start(page);
+        await chooseControls(page, 'Precise steering');
         const initial = await snapshot(page);
         const canvas = (await page.locator('.game-shell canvas').boundingBox())!;
         const center = canvas.x + canvas.width / 2;
@@ -1611,7 +1727,8 @@ for (const asset of ['fenceLow', 'fence3x3']) {
         const canvas = (await page.locator('.game-shell canvas').boundingBox())!;
         await page.mouse.move(canvas.x + canvas.width / 2, canvas.y + canvas.height / 2);
         await page.keyboard.down('w');
-        await expect.poll(async () => (await snapshot(page)).car[2]).toBeGreaterThan(-0.5);
+        // Observe entry before the short enclosure's back wall is reached.
+        await expect.poll(async () => (await snapshot(page)).car[2], { intervals: [16, 32, 50] }).toBeGreaterThan(-0.5);
         expect((await snapshot(page)).impacts).toBe(0);
         if (asset === 'fenceLow') {
             await expect.poll(async () => (await snapshot(page)).car[2]).toBeGreaterThan(7);

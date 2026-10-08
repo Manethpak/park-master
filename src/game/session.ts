@@ -1,8 +1,12 @@
 import { advanceParkingHold, calculateScore, checkParking, IMPACT_PENALTIES, ImpactTracker, nextPhase } from './rules.ts';
 import type { CarPose, GameSession, LevelDefinition } from './types.ts';
+import { loadControlMode, saveControlMode } from './controls.ts';
+import type { ControlMode } from './controls.ts';
 
 export class ParkingGame {
     readonly touchControls = new Map<number, 'forward' | 'reverse' | 'stop' | 'left' | 'right'>();
+    controlMode: ControlMode = loadControlMode();
+    touchSteering: number | null = null;
     private listeners = new Set<() => void>();
     readonly contacts = new ImpactTracker();
     readonly level: LevelDefinition;
@@ -46,6 +50,19 @@ export class ParkingGame {
 
     getSnapshot = () => this.snapshot;
 
+    clearTouchInput = () => {
+        this.touchControls.clear();
+        this.touchSteering = null;
+    };
+
+    setControlMode = (mode: ControlMode) => {
+        if (this.controlMode === mode) return;
+        this.controlMode = mode;
+        this.clearTouchInput();
+        saveControlMode(mode);
+        this.publish();
+    };
+
     publish() {
         this.snapshot = { ...this.session };
         for (const listener of this.listeners) listener();
@@ -65,7 +82,7 @@ export class ParkingGame {
 
     start = () => {
         if (nextPhase(this.session.phase, 'start') !== 'playing') return;
-        this.touchControls.clear();
+        this.clearTouchInput();
         this.session = this.initialSession('playing');
         this.contacts.reset();
         this.resetRevision++;
