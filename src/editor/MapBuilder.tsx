@@ -456,7 +456,7 @@ export function MapBuilder({ hidden, onExit, onTestDrive }: { hidden: boolean; o
                     if (!item && !current) { setMenu(null); return; }
                     if (item) setSelected({ id: item.id, kind: item.kind });
                     setTool('select'); setCopySource(null);
-                    setMenu({ x: Math.max(8, Math.min(e.clientX, window.innerWidth - 196)), y: Math.max(8, Math.min(e.clientY, window.innerHeight - 275)) });
+                    setMenu({ x: Math.max(8, Math.min(e.clientX, window.innerWidth - 196)), y: Math.max(8, Math.min(e.clientY, window.innerHeight - 355)) });
                 }}>
                     <defs><pattern id="workshop-small-grid" width="1" height="1" patternUnits="userSpaceOnUse"><path d="M 1 0 H 0 V 1" fill="none" stroke="#526b4930" strokeWidth="0.025" /></pattern><pattern id="workshop-road-grid" x={map.grid.origin[0] - 2.5} y={map.grid.origin[1] - 2.5} width="5" height="5" patternUnits="userSpaceOnUse"><path d="M 5 0 H 0 V 5" fill="none" stroke="#344b4570" strokeWidth="0.045" /></pattern></defs>
                     <rect x={center[0] - viewWidth / 2} y={center[1] - viewHeight / 2} width={viewWidth} height={viewHeight} fill="#bcc7ad" />
@@ -484,6 +484,8 @@ export function MapBuilder({ hidden, onExit, onTestDrive }: { hidden: boolean; o
                     <button role="menuitem" onClick={() => { setSelected(null); setMenu(null); board.current?.focus(); }}>Deselect</button>
                     <button role="menuitem" disabled={isLocked || layerIndex === allItems.length - 1} onClick={() => changeLayer(1)}>Bring forward</button>
                     <button role="menuitem" disabled={isLocked || layerIndex <= 0} onClick={() => changeLayer(-1)}>Send backward</button>
+                    <button role="menuitem" disabled={isLocked || layerIndex === allItems.length - 1} onClick={() => changeLayer(allItems.length)}>Bring to front</button>
+                    <button role="menuitem" disabled={isLocked || layerIndex <= 0} onClick={() => changeLayer(-allItems.length)}>Send to back</button>
                     <button role="menuitem" onClick={() => { toggle(setLocked, locked, keyOf(current)); setMenu(null); }}>{isLocked ? 'Unlock' : 'Lock'}</button>
                     <button role="menuitem" onClick={() => { toggle(setInvisible, invisible, keyOf(current)); setMenu(null); }}>{invisible.has(keyOf(current)) ? 'Show in editor' : 'Hide in editor'}</button>
                     <button role="menuitem" disabled={isLocked || ['spawn', 'target'].includes(current.kind)} onClick={() => { remove(); setMenu(null); }}>Delete</button>
@@ -512,6 +514,7 @@ export function MapBuilder({ hidden, onExit, onTestDrive }: { hidden: boolean; o
                 {current.kind === 'parking' && <label className="builder-checkbox"><input type="checkbox" checked={current.wheelStop} onChange={(e) => property('wheelStop', e.target.checked)} />Wheel stop</label>}
                 {current.kind === 'object' && <p className="asset-size-note">Fixed model size</p>}
                 <div className="inspector-actions"><button disabled={layerIndex === allItems.length - 1} onClick={() => changeLayer(1)}>Bring forward</button><button disabled={layerIndex <= 0} onClick={() => changeLayer(-1)}>Send backward</button></div>
+                <div className="inspector-actions"><button disabled={layerIndex === allItems.length - 1} onClick={() => changeLayer(allItems.length)}>Bring to front</button><button disabled={layerIndex <= 0} onClick={() => changeLayer(-allItems.length)}>Send to back</button></div>
                 <div className="inspector-actions"><button disabled={['spawn', 'target', 'zone'].includes(current.kind)} onClick={duplicate}>Duplicate</button><button disabled={['spawn', 'target', 'zone'].includes(current.kind)} onClick={duplicateAndPlace}>Duplicate & place</button><button disabled={['spawn', 'target'].includes(current.kind)} onClick={remove}>Delete</button></div>
                 </fieldset>
             </> : <div className="inspector-empty"><span aria-hidden="true">↖</span><h2>No selection</h2><p>Select an item on the map or scene list.</p></div>}

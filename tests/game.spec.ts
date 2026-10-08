@@ -2035,6 +2035,75 @@ for (const kind of ['target', 'parking'] as const) {
     });
 }
 
+test('builder inserts roads and floors below obstacles after reordering and supports front/back actions', async ({ page }) => {
+    await openBuilder(page);
+    await page.getByRole('button', { name: 'Reset map', exact: true }).click();
+    const draft = await savedDraft(page);
+    draft.roads = [{ id: 'base-road', asset: 'road', cell: [0, 0], rotation: 0 }];
+    draft.surfaces.push({ id: 'curb', position: [0, 0.22, 0], size: [5, 0.44, 0.45], heading: 0, color: '#e2decf', solid: true, support: false });
+    draft.objects = [
+        { id: 'box', asset: 'box', position: [0, 0, 0], heading: 0, body: 'dynamic', mass: 16 },
+        { id: 'cone', asset: 'cone', position: [0, 0, 0], heading: 0, body: 'dynamic', mass: 8 }
+    ];
+    await importMap(page, draft);
+    await expect.poll(() => savedDraft(page)).toEqual(draft);
+    const drawn = () => page.locator('svg [data-item-id]').evaluateAll((nodes) => nodes.map((node) => `${node.getAttribute('data-kind')}:${node.getAttribute('data-item-id')}`));
+    const defaults = await drawn();
+    expect(defaults.indexOf('road:base-road')).toBeLessThan(defaults.indexOf('surface:curb'));
+    expect(defaults.indexOf('surface:curb')).toBeLessThan(defaults.indexOf('object:cone'));
+    await page.getByLabel('Scene item').selectOption('object:box');
+    await page.getByRole('button', { name: 'Bring forward', exact: true }).click();
+    const custom = await drawn();
+    expect(custom.indexOf('object:cone')).toBeLessThan(custom.indexOf('object:box'));
+
+    await page.getByRole('button', { name: ASSETS.road.label, exact: true }).click();
+    await placeOnGrid(page, 5, 0);
+    const roadId = (await savedDraft(page)).roads[1].id;
+    await page.getByRole('button', { name: 'Asphalt floor', exact: true }).click();
+    await placeOnGrid(page, 0, 0);
+    const floorId = (await savedDraft(page)).surfaces.at(-1)!.id;
+    const added = await drawn();
+    expect(added.filter((key) => custom.includes(key))).toEqual(custom);
+    expect(added.indexOf(`surface:${floorId}`)).toBeLessThan(added.indexOf('road:base-road'));
+    expect(added.indexOf(`road:${roadId}`)).toBeLessThan(added.indexOf('surface:curb'));
+    const partial = await savedDraft(page);
+    partial.editorOrder = ['object:cone', 'object:box'];
+    await importMap(page, partial);
+    await expect.poll(() => savedDraft(page)).toEqual(partial);
+    const merged = await drawn();
+    expect(merged.indexOf('object:cone')).toBeLessThan(merged.indexOf('object:box'));
+    expect(merged.indexOf(`surface:${floorId}`)).toBeLessThan(merged.indexOf('road:base-road'));
+    expect(merged.indexOf(`road:${roadId}`)).toBeLessThan(merged.indexOf('surface:curb'));
+    await page.getByRole('button', { name: 'Select & move', exact: true }).click();
+    const origin = await gridPoint(page, 0, 0);
+    await page.mouse.click(origin.x, origin.y);
+    await expect(page.getByLabel('Scene item')).toHaveValue('object:box');
+
+    await page.getByLabel('Scene item').selectOption('road:base-road');
+    await page.getByRole('button', { name: 'Bring to front', exact: true }).click();
+    expect((await drawn()).at(-1)).toBe('road:base-road');
+    await expect(page.getByRole('button', { name: 'Bring to front', exact: true })).toBeDisabled();
+    await page.mouse.click(origin.x, origin.y, { button: 'right' });
+    await expect(page.getByLabel('Scene item')).toHaveValue('road:base-road');
+    await page.getByRole('menuitem', { name: 'Send to back', exact: true }).click();
+    expect((await drawn())[0]).toBe('road:base-road');
+    await expect(page.getByRole('button', { name: 'Send to back', exact: true })).toBeDisabled();
+    await page.getByRole('button', { name: 'Undo', exact: true }).click();
+    expect((await drawn()).at(-1)).toBe('road:base-road');
+    await page.getByRole('button', { name: 'Undo', exact: true }).click();
+    expect(await drawn()).toEqual(merged);
+    await page.getByRole('button', { name: 'Redo', exact: true }).click();
+    await page.getByRole('button', { name: 'Redo', exact: true }).click();
+    const finalOrder = await drawn();
+    const exported = await exportMap(page);
+    expect(exported.editorOrder).toEqual(finalOrder);
+    await page.reload();
+    await expect.poll(drawn).toEqual(finalOrder);
+    await importMap(page, exported);
+    await expect.poll(drawn).toEqual(finalOrder);
+    expect((await savedDraft(page)).objects).toEqual(draft.objects);
+});
+
 test('context layering matches scene order, persists with history, and exposes inspector actions', async ({ page }) => {
     await openBuilder(page);
     await page.getByRole('button', { name: 'Reset map', exact: true }).click();

@@ -8,6 +8,14 @@ export type Tool = 'select' | 'spawn' | 'target' | 'parking' | 'floor' | 'curb' 
 
 export const PROP_LABELS: Record<string, string> = Object.fromEntries(Object.entries(ASSETS).filter(([, asset]) => asset.category !== 'Roads').map(([id, asset]) => [id, asset.label]));
 
+function defaultLayer(item: Item) {
+    if (item.kind === 'surface') return item.support ? 0 : 3;
+    if (item.kind === 'road' || item.kind === 'object' && ASSETS[item.asset!].category === 'Paths & driveways') return 1;
+    if (item.kind === 'parking' || item.kind === 'target') return 2;
+    if (item.kind === 'object') return 4;
+    return item.kind === 'spawn' ? 5 : 6;
+}
+
 export function items(map: MapDefinition): Item[] {
     const result: Item[] = [
         ...map.surfaces.map((s) => ({ kind: 'surface' as const, id: s.id, x: s.position[0], y: s.position[1], z: s.position[2], heading: s.heading, width: s.size[0], height: s.size[1], length: s.size[2], color: s.color, solid: s.solid, support: s.support })),
@@ -21,17 +29,30 @@ export function items(map: MapDefinition): Item[] {
         { kind: 'spawn' as const, id: 'spawn', x: map.spawn.position[0], y: map.spawn.position[1], z: map.spawn.position[2], heading: map.spawn.heading, width: vehicleGeometry(map.playerVehicle).width, length: vehicleGeometry(map.playerVehicle).length },
         ...(map.playableZone ? [{ ...map.playableZone, kind: 'zone' as const, id: 'playable-zone', y: 0, heading: 0 }] : [])
     ];
+    result.sort((a, b) => defaultLayer(a) - defaultLayer(b));
     if (!map.editorOrder) return result;
-    const order = new Map(map.editorOrder.map((key, index) => [key, index]));
-    return result.sort((a, b) => (order.get(`${a.kind}:${a.id}`) ?? map.editorOrder!.length) - (order.get(`${b.kind}:${b.id}`) ?? map.editorOrder!.length));
+    const byKey = new Map(result.map((item) => [`${item.kind}:${item.id}`, item]));
+    const ordered: Item[] = [];
+    for (const key of map.editorOrder) {
+        const item = byKey.get(key);
+        if (item) { ordered.push(item); byKey.delete(key); }
+    }
+    // Preserve explicit ordering, but insert new items in their natural layer,
+    // rather than appending new floors and roads above every existing obstacle.
+    for (const item of byKey.values()) {
+        const next = ordered.findIndex((existing) => defaultLayer(existing) > defaultLayer(item));
+        ordered.splice(next < 0 ? ordered.length : next, 0, item);
+    }
+    return ordered;
 }
 
 export function reorderItem(map: MapDefinition, selected: Selection, direction: number) {
     const order = items(map).map((item) => `${item.kind}:${item.id}`);
     const index = order.indexOf(`${selected.kind}:${selected.id}`);
-    const next = index + direction;
-    if (index < 0 || next < 0 || next >= order.length) return;
-    [order[index], order[next]] = [order[next], order[index]];
+    const next = Math.max(0, Math.min(order.length - 1, index + direction));
+    if (index < 0 || next === index) return;
+    const [key] = order.splice(index, 1);
+    order.splice(next, 0, key);
     map.editorOrder = order;
 }
 
