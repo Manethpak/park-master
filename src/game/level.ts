@@ -1,4 +1,4 @@
-import courtyard from './levels/courtyard.json';
+import courtyard from './levels/004-courtyard.json';
 import { parseMap, resolveMap } from './maps.ts';
 
 export const COURTYARD_MAP = parseMap(courtyard);

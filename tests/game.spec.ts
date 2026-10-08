@@ -4,8 +4,8 @@ import { ASSETS } from '../src/game/assets.ts';
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 
-const authoredMap = JSON.parse(await readFile(new URL('../src/game/levels/courtyard.json', import.meta.url), 'utf8')) as MapDefinition;
-const firstLevelLabel = `Select level 1: ${authoredMap.name}`;
+const authoredMap = JSON.parse(await readFile(new URL('../src/game/levels/004-courtyard.json', import.meta.url), 'utf8')) as MapDefinition;
+const firstLevelLabel = `Select level 4: ${authoredMap.name}`;
 
 type Snapshot = {
     level: { id: string; name: string; timeLimit: number; impactPenalty: number; smallImpactPenalty: number; playerVehicle: string; playableZone?: { x: number; z: number; width: number; length: number }; spawn: { position: number[]; heading: number }; bay: { x: number; z: number; heading: number } };
@@ -62,6 +62,7 @@ async function start(page: Page) {
     await expect(page.getByRole('heading', { name: 'SELECT LEVEL', exact: true })).toBeVisible();
     const launch = page.getByRole('button', { name: /START LEVEL|REPLAY LEVEL/ });
     if (await launch.isVisible()) {
+        await page.getByRole('button', { name: firstLevelLabel, exact: true }).click();
         await launch.click();
         await page.getByRole('button', { name: 'Start', exact: true }).click();
     } else {
@@ -69,6 +70,7 @@ async function start(page: Page) {
         await expect(page.getByRole('button', { name: 'Accelerate', exact: true })).toBeVisible();
     }
     await expect.poll(async () => (await snapshot(page)).phase).toBe('playing');
+    expect((await snapshot(page)).level.id).toBe(authoredMap.id);
     const canvas = (await page.locator('.game-shell canvas').boundingBox())!;
     await page.mouse.move(canvas.x + canvas.width / 2, canvas.y + canvas.height / 2);
 }
@@ -754,7 +756,7 @@ for (const [score, stars] of [[0, 0], [1, 1], [300, 1], [301, 2], [600, 2], [601
         await expect(tile).toContainText(`BEST ${score} PTS`);
         await expect(page.getByRole('button', { name: 'REPLAY LEVEL', exact: true })).toBeVisible();
         if (score === 301) {
-            await page.route('**/src/game/levels/courtyard.json*', (route) => route.fulfill({
+            await page.route('**/src/game/levels/004-courtyard.json*', (route) => route.fulfill({
                 contentType: 'application/javascript',
                 body: `export default ${JSON.stringify({ ...authoredMap, difficulty: 'easy', challenge: 'Updated label', campaignOrder: 42 })};`
             }));
