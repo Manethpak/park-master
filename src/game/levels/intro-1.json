@@ -1,0 +1,449 @@
+{
+  "schemaVersion": 1,
+  "id": "intro-1",
+  "name": "Straight line",
+  "timeLimit": 120,
+  "impactPenalty": 25,
+  "smallImpactPenalty": 10,
+  "grid": {
+    "cellSize": 5,
+    "origin": [
+      0,
+      0
+    ]
+  },
+  "spawn": {
+    "position": [
+      0,
+      0,
+      29
+    ],
+    "heading": 180
+  },
+  "bay": {
+    "x": 0,
+    "z": -14.25,
+    "width": 3.4,
+    "length": 5.7,
+    "heading": 180
+  },
+  "roads": [
+    {
+      "id": "road-1",
+      "asset": "roadCrossing",
+      "cell": [
+        0,
+        5
+      ],
+      "rotation": 90
+    },
+    {
+      "id": "road-2",
+      "asset": "road",
+      "cell": [
+        0,
+        4
+      ],
+      "rotation": 90
+    },
+    {
+      "id": "road-3",
+      "asset": "road",
+      "cell": [
+        0,
+        3
+      ],
+      "rotation": 90
+    },
+    {
+      "id": "road-4",
+      "asset": "road",
+      "cell": [
+        0,
+        2
+      ],
+      "rotation": 90
+    },
+    {
+      "id": "road-5",
+      "asset": "road",
+      "cell": [
+        0,
+        1
+      ],
+      "rotation": 90
+    },
+    {
+      "id": "road-6",
+      "asset": "road",
+      "cell": [
+        0,
+        0
+      ],
+      "rotation": 90
+    },
+    {
+      "id": "road-7",
+      "asset": "road",
+      "cell": [
+        0,
+        -1
+      ],
+      "rotation": 90
+    },
+    {
+      "id": "road-8",
+      "asset": "road",
+      "cell": [
+        0,
+        6
+      ],
+      "rotation": 90
+    },
+    {
+      "id": "road-9",
+      "asset": "road",
+      "cell": [
+        0,
+        -2
+      ],
+      "rotation": 90
+    },
+    {
+      "id": "road-10",
+      "asset": "road",
+      "cell": [
+        0,
+        -3
+      ],
+      "rotation": 90
+    }
+  ],
+  "objects": [
+    {
+      "id": "treeSmall-1",
+      "asset": "treeSmall",
+      "position": [
+        -5,
+        0,
+        -15.5
+      ],
+      "heading": 90
+    },
+    {
+      "id": "treeSmall-2",
+      "asset": "treeSmall",
+      "position": [
+        7.25,
+        0,
+        -13.75
+      ],
+      "heading": 90
+    },
+    {
+      "id": "tree-1",
+      "asset": "tree",
+      "position": [
+        -7,
+        0,
+        -12.25
+      ],
+      "heading": 90
+    },
+    {
+      "id": "tree-2",
+      "asset": "tree",
+      "position": [
+        8,
+        0,
+        -17.25
+      ],
+      "heading": 90
+    },
+    {
+      "id": "stopSign-1",
+      "asset": "stopSign",
+      "position": [
+        3.25,
+        0,
+        -7.75
+      ],
+      "heading": 90,
+      "body": "static"
+    },
+    {
+      "id": "stopSign-2",
+      "asset": "stopSign",
+      "position": [
+        -3.25,
+        0,
+        -7.75
+      ],
+      "heading": 90,
+      "body": "static"
+    },
+    {
+      "id": "barrierSide-1",
+      "asset": "barrierSide",
+      "position": [
+        0,
+        0,
+        -15.75
+      ],
+      "heading": 0,
+      "body": "static"
+    },
+    {
+      "id": "barrierSide-6",
+      "asset": "barrierSide",
+      "position": [
+        0,
+        0,
+        23.25
+      ],
+      "heading": 0,
+      "body": "static"
+    },
+    {
+      "id": "object-1",
+      "asset": "barrierSide",
+      "position": [
+        0,
+        0,
+        18.25
+      ],
+      "heading": 0,
+      "body": "static"
+    },
+    {
+      "id": "object-2",
+      "asset": "barrierSide",
+      "position": [
+        0,
+        0,
+        13.25
+      ],
+      "heading": 0,
+      "body": "static"
+    },
+    {
+      "id": "barrierSide-2",
+      "asset": "barrierSide",
+      "position": [
+        0,
+        0,
+        8.25
+      ],
+      "heading": 180,
+      "body": "static"
+    },
+    {
+      "id": "barrierSide-3",
+      "asset": "barrierSide",
+      "position": [
+        0,
+        0,
+        3.25
+      ],
+      "heading": 180,
+      "body": "static"
+    },
+    {
+      "id": "barrierSide-4",
+      "asset": "barrierSide",
+      "position": [
+        0,
+        0,
+        -1.75
+      ],
+      "heading": 180,
+      "body": "static"
+    },
+    {
+      "id": "barrierSide-5",
+      "asset": "barrierSide",
+      "position": [
+        0,
+        0,
+        -6.75
+      ],
+      "heading": 180,
+      "body": "static"
+    },
+    {
+      "id": "barrierSide-7",
+      "asset": "barrierSide",
+      "position": [
+        0,
+        0,
+        -11.75
+      ],
+      "heading": 180,
+      "body": "static"
+    },
+    {
+      "id": "box-1",
+      "asset": "box",
+      "position": [
+        -2.5,
+        0,
+        -6.75
+      ],
+      "heading": 180,
+      "body": "dynamic",
+      "mass": 16
+    },
+    {
+      "id": "cone-1",
+      "asset": "cone",
+      "position": [
+        -1.25,
+        0,
+        -17.5
+      ],
+      "heading": 180,
+      "body": "dynamic",
+      "mass": 8
+    },
+    {
+      "id": "cone-2",
+      "asset": "cone",
+      "position": [
+        1.25,
+        0,
+        -17.5
+      ],
+      "heading": 180,
+      "body": "dynamic",
+      "mass": 8
+    },
+    {
+      "id": "object-3",
+      "asset": "barrierSide",
+      "position": [
+        0,
+        0,
+        28.25
+      ],
+      "heading": 0,
+      "body": "static"
+    },
+    {
+      "id": "barrierEndRound-1",
+      "asset": "barrierEndRound",
+      "position": [
+        0,
+        0,
+        33.25
+      ],
+      "heading": 90,
+      "body": "static"
+    },
+    {
+      "id": "houseN-1",
+      "asset": "houseN",
+      "position": [
+        -8.5,
+        0,
+        -0.75
+      ],
+      "heading": 270,
+      "body": "static"
+    },
+    {
+      "id": "houseK-1",
+      "asset": "houseK",
+      "position": [
+        -7.5,
+        0,
+        8
+      ],
+      "heading": 270,
+      "body": "static"
+    },
+    {
+      "id": "suv-1",
+      "asset": "suv",
+      "position": [
+        -6.75,
+        0,
+        12.75
+      ],
+      "heading": 270,
+      "body": "static"
+    }
+  ],
+  "surfaces": [
+    {
+      "id": "ground",
+      "position": [
+        0,
+        -0.4,
+        0
+      ],
+      "size": [
+        90,
+        0.5,
+        90
+      ],
+      "heading": 0,
+      "color": "#9eaf8a",
+      "solid": true,
+      "support": true
+    },
+    {
+      "id": "curb-1",
+      "position": [
+        0,
+        0.22,
+        -18.5
+      ],
+      "size": [
+        10,
+        0.44,
+        0.5
+      ],
+      "heading": 0,
+      "color": "#e2decf",
+      "solid": true,
+      "support": false
+    }
+  ],
+  "parkingBays": [],
+  "editorOrder": [
+    "object:object-3",
+    "object:barrierSide-6",
+    "object:object-1",
+    "object:object-2",
+    "object:barrierSide-2",
+    "object:barrierSide-3",
+    "object:barrierSide-4",
+    "object:barrierSide-5",
+    "object:barrierSide-7",
+    "object:barrierSide-1",
+    "surface:ground",
+    "road:road-1",
+    "road:road-2",
+    "road:road-3",
+    "road:road-4",
+    "road:road-5",
+    "road:road-6",
+    "road:road-7",
+    "road:road-8",
+    "road:road-9",
+    "road:road-10",
+    "target:target",
+    "surface:curb-1",
+    "object:treeSmall-1",
+    "object:treeSmall-2",
+    "object:tree-1",
+    "object:tree-2",
+    "object:box-1",
+    "object:cone-1",
+    "object:cone-2",
+    "spawn:spawn",
+    "object:stopSign-1",
+    "object:stopSign-2"
+  ],
+  "challenge": "Straight"
+}

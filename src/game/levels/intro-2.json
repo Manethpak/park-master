@@ -1,0 +1,411 @@
+{
+  "schemaVersion": 1,
+  "id": "intro-2",
+  "name": "A little turn",
+  "timeLimit": 120,
+  "impactPenalty": 25,
+  "smallImpactPenalty": 10,
+  "grid": {
+    "cellSize": 5,
+    "origin": [
+      0,
+      0
+    ]
+  },
+  "spawn": {
+    "position": [
+      -10,
+      0,
+      19.75
+    ],
+    "heading": 90
+  },
+  "bay": {
+    "x": 0,
+    "z": -14.25,
+    "width": 3.4,
+    "length": 5.7,
+    "heading": 180
+  },
+  "roads": [
+    {
+      "id": "road-3",
+      "asset": "road",
+      "cell": [
+        0,
+        3
+      ],
+      "rotation": 90
+    },
+    {
+      "id": "road-4",
+      "asset": "road",
+      "cell": [
+        0,
+        2
+      ],
+      "rotation": 90
+    },
+    {
+      "id": "road-5",
+      "asset": "road",
+      "cell": [
+        0,
+        1
+      ],
+      "rotation": 90
+    },
+    {
+      "id": "road-6",
+      "asset": "road",
+      "cell": [
+        0,
+        0
+      ],
+      "rotation": 90
+    },
+    {
+      "id": "road-7",
+      "asset": "road",
+      "cell": [
+        0,
+        -1
+      ],
+      "rotation": 90
+    },
+    {
+      "id": "road-9",
+      "asset": "road",
+      "cell": [
+        0,
+        -2
+      ],
+      "rotation": 90
+    },
+    {
+      "id": "road-10",
+      "asset": "road",
+      "cell": [
+        0,
+        -3
+      ],
+      "rotation": 90
+    },
+    {
+      "id": "road-1",
+      "asset": "roadBend",
+      "cell": [
+        0,
+        4
+      ],
+      "rotation": 270
+    },
+    {
+      "id": "road-2",
+      "asset": "road",
+      "cell": [
+        -1,
+        4
+      ],
+      "rotation": 0
+    },
+    {
+      "id": "road-8",
+      "asset": "road",
+      "cell": [
+        -2,
+        4
+      ],
+      "rotation": 0
+    }
+  ],
+  "objects": [
+    {
+      "id": "treeSmall-1",
+      "asset": "treeSmall",
+      "position": [
+        -5,
+        0,
+        -15.5
+      ],
+      "heading": 90
+    },
+    {
+      "id": "treeSmall-2",
+      "asset": "treeSmall",
+      "position": [
+        7.25,
+        0,
+        -13.75
+      ],
+      "heading": 90
+    },
+    {
+      "id": "tree-1",
+      "asset": "tree",
+      "position": [
+        -7,
+        0,
+        -12.25
+      ],
+      "heading": 90
+    },
+    {
+      "id": "tree-2",
+      "asset": "tree",
+      "position": [
+        8,
+        0,
+        -17.25
+      ],
+      "heading": 90
+    },
+    {
+      "id": "stopSign-1",
+      "asset": "stopSign",
+      "position": [
+        3.25,
+        0,
+        -7.75
+      ],
+      "heading": 90,
+      "body": "static"
+    },
+    {
+      "id": "stopSign-2",
+      "asset": "stopSign",
+      "position": [
+        -3.25,
+        0,
+        -7.75
+      ],
+      "heading": 90,
+      "body": "static"
+    },
+    {
+      "id": "box-1",
+      "asset": "box",
+      "position": [
+        -2.5,
+        0,
+        -6.75
+      ],
+      "heading": 180,
+      "body": "dynamic",
+      "mass": 16
+    },
+    {
+      "id": "cone-1",
+      "asset": "cone",
+      "position": [
+        -1.25,
+        0,
+        -17.5
+      ],
+      "heading": 180,
+      "body": "dynamic",
+      "mass": 8
+    },
+    {
+      "id": "cone-2",
+      "asset": "cone",
+      "position": [
+        1.25,
+        0,
+        -17.5
+      ],
+      "heading": 180,
+      "body": "dynamic",
+      "mass": 8
+    },
+    {
+      "id": "houseN-1",
+      "asset": "houseN",
+      "position": [
+        -8.5,
+        0,
+        -0.75
+      ],
+      "heading": 270,
+      "body": "static"
+    },
+    {
+      "id": "houseK-1",
+      "asset": "houseK",
+      "position": [
+        -7.5,
+        0,
+        8
+      ],
+      "heading": 270,
+      "body": "static"
+    },
+    {
+      "id": "suv-1",
+      "asset": "suv",
+      "position": [
+        -6.75,
+        0,
+        12.75
+      ],
+      "heading": 270,
+      "body": "static"
+    }
+  ],
+  "surfaces": [
+    {
+      "id": "ground",
+      "position": [
+        0,
+        -0.4,
+        0
+      ],
+      "size": [
+        90,
+        0.5,
+        90
+      ],
+      "heading": 0,
+      "color": "#9eaf8a",
+      "solid": true,
+      "support": true
+    },
+    {
+      "id": "curb-1",
+      "position": [
+        0,
+        0.22,
+        -18.5
+      ],
+      "size": [
+        10,
+        0.44,
+        0.5
+      ],
+      "heading": 0,
+      "color": "#e2decf",
+      "solid": true,
+      "support": false
+    },
+    {
+      "id": "curb-2",
+      "position": [
+        -5.25,
+        0.22,
+        23
+      ],
+      "size": [
+        16.5,
+        0.44,
+        0.5
+      ],
+      "heading": 180,
+      "color": "#e2decf",
+      "solid": true,
+      "support": false
+    },
+    {
+      "id": "surface-1",
+      "position": [
+        -8.25,
+        0.22,
+        17
+      ],
+      "size": [
+        10.5,
+        0.44,
+        0.5
+      ],
+      "heading": 0,
+      "color": "#e2decf",
+      "solid": true,
+      "support": false
+    },
+    {
+      "id": "surface-2",
+      "position": [
+        -13.25,
+        0.22,
+        20
+      ],
+      "size": [
+        6.5,
+        0.44,
+        0.5
+      ],
+      "heading": 90,
+      "color": "#e2decf",
+      "solid": true,
+      "support": false
+    },
+    {
+      "id": "surface-3",
+      "position": [
+        -2.999999999999999,
+        0.22,
+        -0.625
+      ],
+      "size": [
+        35.75,
+        0.44,
+        0.5
+      ],
+      "heading": 90,
+      "color": "#e2decf",
+      "solid": true,
+      "support": false
+    },
+    {
+      "id": "surface-4",
+      "position": [
+        3.000000000000002,
+        0.22,
+        2.375
+      ],
+      "size": [
+        41.75,
+        0.44,
+        0.5
+      ],
+      "heading": 270,
+      "color": "#e2decf",
+      "solid": true,
+      "support": false
+    }
+  ],
+  "parkingBays": [],
+  "editorOrder": [
+    "road:road-1",
+    "road:road-2",
+    "road:road-8",
+    "surface:ground",
+    "road:road-3",
+    "road:road-4",
+    "road:road-5",
+    "road:road-6",
+    "road:road-7",
+    "road:road-9",
+    "road:road-10",
+    "target:target",
+    "surface:curb-2",
+    "surface:surface-1",
+    "surface:surface-2",
+    "surface:surface-3",
+    "surface:surface-4",
+    "object:treeSmall-1",
+    "object:treeSmall-2",
+    "object:tree-1",
+    "object:tree-2",
+    "object:box-1",
+    "object:cone-1",
+    "object:cone-2",
+    "object:houseN-1",
+    "object:houseK-1",
+    "object:suv-1",
+    "spawn:spawn",
+    "object:stopSign-1",
+    "object:stopSign-2",
+    "surface:curb-1"
+  ],
+  "challenge": "A little turn"
+}

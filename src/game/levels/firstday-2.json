@@ -1,0 +1,973 @@
+{
+  "schemaVersion": 1,
+  "id": "firstday-2",
+  "name": "Second day at work",
+  "timeLimit": 90,
+  "impactPenalty": 25,
+  "smallImpactPenalty": 10,
+  "grid": {
+    "cellSize": 5,
+    "origin": [
+      0,
+      0
+    ]
+  },
+  "spawn": {
+    "position": [
+      -12.25,
+      0,
+      11.5
+    ],
+    "heading": 180
+  },
+  "bay": {
+    "x": 8.5,
+    "z": -11.5,
+    "width": 3.4,
+    "length": 5.7,
+    "heading": 0
+  },
+  "roads": [],
+  "objects": [
+    {
+      "id": "houseH-1",
+      "asset": "houseH",
+      "position": [
+        -10.5,
+        0,
+        -11.75
+      ],
+      "heading": 0,
+      "body": "static"
+    },
+    {
+      "id": "houseH-2",
+      "asset": "houseH",
+      "position": [
+        -2.25,
+        0,
+        -11.75
+      ],
+      "heading": 0,
+      "body": "static"
+    },
+    {
+      "id": "constructionFence-1",
+      "asset": "constructionFence",
+      "position": [
+        -9.5,
+        0,
+        13.5
+      ],
+      "heading": 0,
+      "body": "static"
+    },
+    {
+      "id": "constructionFence-2",
+      "asset": "constructionFence",
+      "position": [
+        -9.5,
+        0,
+        10.75
+      ],
+      "heading": 0,
+      "body": "static"
+    },
+    {
+      "id": "constructionFence-3",
+      "asset": "constructionFence",
+      "position": [
+        -9.5,
+        0,
+        8
+      ],
+      "heading": 0,
+      "body": "static"
+    },
+    {
+      "id": "dumpster-1",
+      "asset": "dumpster",
+      "position": [
+        -8.5,
+        0,
+        8
+      ],
+      "heading": 0,
+      "body": "static"
+    },
+    {
+      "id": "dumpster-2",
+      "asset": "dumpster",
+      "position": [
+        -8.5,
+        0,
+        10.25
+      ],
+      "heading": 0,
+      "body": "static"
+    },
+    {
+      "id": "dumpster-3",
+      "asset": "dumpster",
+      "position": [
+        -8.5,
+        0,
+        12.5
+      ],
+      "heading": 0,
+      "body": "static"
+    },
+    {
+      "id": "constructionLight-1",
+      "asset": "constructionLight",
+      "position": [
+        -9.5,
+        0,
+        6.5
+      ],
+      "heading": 0,
+      "body": "static"
+    },
+    {
+      "id": "houseN-1",
+      "asset": "houseN",
+      "position": [
+        8.5,
+        0,
+        9.75
+      ],
+      "heading": 0,
+      "body": "static"
+    },
+    {
+      "id": "garbageTruck-1",
+      "asset": "garbageTruck",
+      "position": [
+        -7.25,
+        0,
+        3.75
+      ],
+      "heading": 210,
+      "body": "static"
+    },
+    {
+      "id": "delivery-1",
+      "asset": "delivery",
+      "position": [
+        10.75,
+        0,
+        3
+      ],
+      "heading": 90,
+      "body": "static"
+    },
+    {
+      "id": "treeSmall-1",
+      "asset": "treeSmall",
+      "position": [
+        -17.75,
+        0,
+        -6
+      ],
+      "heading": 90
+    },
+    {
+      "id": "treeSmall-2",
+      "asset": "treeSmall",
+      "position": [
+        -19,
+        0,
+        -14
+      ],
+      "heading": 90
+    },
+    {
+      "id": "treeSmall-3",
+      "asset": "treeSmall",
+      "position": [
+        17,
+        0,
+        -14
+      ],
+      "heading": 90
+    },
+    {
+      "id": "treeSmall-4",
+      "asset": "treeSmall",
+      "position": [
+        26,
+        0,
+        -6.5
+      ],
+      "heading": 90
+    },
+    {
+      "id": "treeSmall-5",
+      "asset": "treeSmall",
+      "position": [
+        24.25,
+        0,
+        3.5
+      ],
+      "heading": 90
+    },
+    {
+      "id": "treeSmall-6",
+      "asset": "treeSmall",
+      "position": [
+        20,
+        0,
+        -4.5
+      ],
+      "heading": 90
+    },
+    {
+      "id": "treeSmall-7",
+      "asset": "treeSmall",
+      "position": [
+        -16,
+        0,
+        4
+      ],
+      "heading": 90
+    },
+    {
+      "id": "treeSmall-8",
+      "asset": "treeSmall",
+      "position": [
+        -25.5,
+        0,
+        -2.5
+      ],
+      "heading": 90
+    },
+    {
+      "id": "treeSmall-9",
+      "asset": "treeSmall",
+      "position": [
+        -21.5,
+        0,
+        13.5
+      ],
+      "heading": 90
+    },
+    {
+      "id": "treeSmall-10",
+      "asset": "treeSmall",
+      "position": [
+        -16.25,
+        0,
+        20.75
+      ],
+      "heading": 90
+    },
+    {
+      "id": "treeSmall-11",
+      "asset": "treeSmall",
+      "position": [
+        -10.25,
+        0,
+        29.25
+      ],
+      "heading": 90
+    },
+    {
+      "id": "treeSmall-12",
+      "asset": "treeSmall",
+      "position": [
+        -7.25,
+        0,
+        17.25
+      ],
+      "heading": 90
+    },
+    {
+      "id": "treeSmall-13",
+      "asset": "treeSmall",
+      "position": [
+        -2,
+        0,
+        24.5
+      ],
+      "heading": 90
+    },
+    {
+      "id": "treeSmall-14",
+      "asset": "treeSmall",
+      "position": [
+        7,
+        0,
+        17.25
+      ],
+      "heading": 90
+    },
+    {
+      "id": "treeSmall-15",
+      "asset": "treeSmall",
+      "position": [
+        4.5,
+        0,
+        26.75
+      ],
+      "heading": 90
+    },
+    {
+      "id": "treeSmall-16",
+      "asset": "treeSmall",
+      "position": [
+        18.25,
+        0,
+        27.75
+      ],
+      "heading": 90
+    },
+    {
+      "id": "treeSmall-17",
+      "asset": "treeSmall",
+      "position": [
+        23.75,
+        0,
+        15.5
+      ],
+      "heading": 90
+    },
+    {
+      "id": "tree-1",
+      "asset": "tree",
+      "position": [
+        -9.25,
+        0,
+        27.25
+      ],
+      "heading": 90
+    },
+    {
+      "id": "tree-2",
+      "asset": "tree",
+      "position": [
+        0,
+        0,
+        30.5
+      ],
+      "heading": 90
+    },
+    {
+      "id": "tree-3",
+      "asset": "tree",
+      "position": [
+        8.5,
+        0,
+        27
+      ],
+      "heading": 90
+    },
+    {
+      "id": "tree-4",
+      "asset": "tree",
+      "position": [
+        10.25,
+        0,
+        20
+      ],
+      "heading": 90
+    },
+    {
+      "id": "tree-5",
+      "asset": "tree",
+      "position": [
+        15,
+        0,
+        23.5
+      ],
+      "heading": 90
+    },
+    {
+      "id": "tree-6",
+      "asset": "tree",
+      "position": [
+        20.5,
+        0,
+        15.75
+      ],
+      "heading": 90
+    },
+    {
+      "id": "tree-7",
+      "asset": "tree",
+      "position": [
+        24.5,
+        0,
+        9.25
+      ],
+      "heading": 90
+    },
+    {
+      "id": "tree-8",
+      "asset": "tree",
+      "position": [
+        20.75,
+        0,
+        4.25
+      ],
+      "heading": 90
+    },
+    {
+      "id": "tree-9",
+      "asset": "tree",
+      "position": [
+        25.5,
+        0,
+        -3.5
+      ],
+      "heading": 90
+    },
+    {
+      "id": "tree-10",
+      "asset": "tree",
+      "position": [
+        21.75,
+        0,
+        -11.25
+      ],
+      "heading": 90
+    },
+    {
+      "id": "tree-11",
+      "asset": "tree",
+      "position": [
+        20,
+        0,
+        -18.25
+      ],
+      "heading": 90
+    },
+    {
+      "id": "tree-12",
+      "asset": "tree",
+      "position": [
+        1.25,
+        0,
+        -21
+      ],
+      "heading": 90
+    },
+    {
+      "id": "tree-13",
+      "asset": "tree",
+      "position": [
+        15,
+        0,
+        -18.75
+      ],
+      "heading": 90
+    },
+    {
+      "id": "tree-14",
+      "asset": "tree",
+      "position": [
+        -14,
+        0,
+        -22
+      ],
+      "heading": 90
+    },
+    {
+      "id": "tree-15",
+      "asset": "tree",
+      "position": [
+        -3.5,
+        0,
+        -19.75
+      ],
+      "heading": 90
+    },
+    {
+      "id": "tree-16",
+      "asset": "tree",
+      "position": [
+        8.75,
+        0,
+        -23.5
+      ],
+      "heading": 90
+    },
+    {
+      "id": "tree-17",
+      "asset": "tree",
+      "position": [
+        -8.75,
+        0,
+        -18
+      ],
+      "heading": 90
+    },
+    {
+      "id": "tree-18",
+      "asset": "tree",
+      "position": [
+        -27.25,
+        0,
+        -12.75
+      ],
+      "heading": 90
+    },
+    {
+      "id": "tree-19",
+      "asset": "tree",
+      "position": [
+        -22.25,
+        0,
+        -5.25
+      ],
+      "heading": 90
+    },
+    {
+      "id": "tree-20",
+      "asset": "tree",
+      "position": [
+        -20.5,
+        0,
+        4.5
+      ],
+      "heading": 90
+    },
+    {
+      "id": "tree-21",
+      "asset": "tree",
+      "position": [
+        -32.25,
+        0,
+        13.25
+      ],
+      "heading": 90
+    },
+    {
+      "id": "tree-22",
+      "asset": "tree",
+      "position": [
+        -23.25,
+        0,
+        21
+      ],
+      "heading": 90
+    },
+    {
+      "id": "tree-23",
+      "asset": "tree",
+      "position": [
+        8.5,
+        0,
+        -18.5
+      ],
+      "heading": 135
+    },
+    {
+      "id": "constructionFence-4",
+      "asset": "constructionFence",
+      "position": [
+        -13.75,
+        0,
+        -6
+      ],
+      "heading": 90,
+      "body": "static"
+    },
+    {
+      "id": "constructionFence-5",
+      "asset": "constructionFence",
+      "position": [
+        -11.5,
+        0,
+        -6
+      ],
+      "heading": 90,
+      "body": "static"
+    },
+    {
+      "id": "constructionFence-6",
+      "asset": "constructionFence",
+      "position": [
+        -9.25,
+        0,
+        -6
+      ],
+      "heading": 90,
+      "body": "static"
+    },
+    {
+      "id": "constructionFence-7",
+      "asset": "constructionFence",
+      "position": [
+        -7,
+        0,
+        -6
+      ],
+      "heading": 90,
+      "body": "static"
+    },
+    {
+      "id": "constructionFence-8",
+      "asset": "constructionFence",
+      "position": [
+        -4.75,
+        0,
+        -6
+      ],
+      "heading": 90,
+      "body": "static"
+    },
+    {
+      "id": "constructionFence-9",
+      "asset": "constructionFence",
+      "position": [
+        -2.25,
+        0,
+        -6
+      ],
+      "heading": 90,
+      "body": "static"
+    },
+    {
+      "id": "constructionFence-10",
+      "asset": "constructionFence",
+      "position": [
+        0.25,
+        0,
+        -6
+      ],
+      "heading": 90,
+      "body": "static"
+    },
+    {
+      "id": "box-1",
+      "asset": "box",
+      "position": [
+        -6.25,
+        0,
+        10.5
+      ],
+      "heading": 105,
+      "body": "dynamic",
+      "mass": 16
+    },
+    {
+      "id": "box-2",
+      "asset": "box",
+      "position": [
+        -4.5,
+        0,
+        7.75
+      ],
+      "heading": 315,
+      "body": "dynamic",
+      "mass": 16
+    },
+    {
+      "id": "box-3",
+      "asset": "box",
+      "position": [
+        -1.5,
+        0,
+        10
+      ],
+      "heading": 105,
+      "body": "dynamic",
+      "mass": 16
+    },
+    {
+      "id": "box-4",
+      "asset": "box",
+      "position": [
+        -3,
+        0,
+        13.25
+      ],
+      "heading": 60,
+      "body": "dynamic",
+      "mass": 16
+    },
+    {
+      "id": "box-5",
+      "asset": "box",
+      "position": [
+        -6,
+        0,
+        13.5
+      ],
+      "heading": 105,
+      "body": "dynamic",
+      "mass": 16
+    },
+    {
+      "id": "box-6",
+      "asset": "box",
+      "position": [
+        -6.5,
+        0,
+        8.25
+      ],
+      "heading": 120,
+      "body": "dynamic",
+      "mass": 16
+    },
+    {
+      "id": "box-7",
+      "asset": "box",
+      "position": [
+        -7.25,
+        0,
+        11.5
+      ],
+      "heading": 90,
+      "body": "dynamic",
+      "mass": 16
+    },
+    {
+      "id": "box-8",
+      "asset": "box",
+      "position": [
+        -2.75,
+        0,
+        11.25
+      ],
+      "heading": 90,
+      "body": "dynamic",
+      "mass": 16
+    },
+    {
+      "id": "fence-1",
+      "asset": "fence",
+      "position": [
+        1.5,
+        0,
+        7
+      ],
+      "heading": 90,
+      "body": "static"
+    },
+    {
+      "id": "fence-2",
+      "asset": "fence",
+      "position": [
+        1.5,
+        0,
+        10.25
+      ],
+      "heading": 90,
+      "body": "static"
+    },
+    {
+      "id": "fence-3",
+      "asset": "fence",
+      "position": [
+        1.5,
+        0,
+        13.5
+      ],
+      "heading": 90,
+      "body": "static"
+    },
+    {
+      "id": "object-1",
+      "asset": "dumpster",
+      "position": [
+        -0.25,
+        0,
+        13.5
+      ],
+      "heading": 135,
+      "body": "static"
+    },
+    {
+      "id": "object-2",
+      "asset": "dumpster",
+      "position": [
+        0.25,
+        0,
+        10.75
+      ],
+      "heading": 180,
+      "body": "static"
+    },
+    {
+      "id": "object-3",
+      "asset": "garbageTruck",
+      "position": [
+        -1,
+        0,
+        5
+      ],
+      "heading": 165,
+      "body": "static"
+    },
+    {
+      "id": "pickup-1",
+      "asset": "pickup",
+      "position": [
+        4.5,
+        0,
+        -11.5
+      ],
+      "heading": 0,
+      "body": "static"
+    },
+    {
+      "id": "sedan-1",
+      "asset": "sedan",
+      "position": [
+        12.5,
+        0,
+        -11.5
+      ],
+      "heading": 0,
+      "body": "static"
+    },
+    {
+      "id": "pickup-2",
+      "asset": "pickup",
+      "position": [
+        11,
+        0,
+        -0.5
+      ],
+      "heading": 90,
+      "body": "static"
+    },
+    {
+      "id": "coneFlat-2",
+      "asset": "coneFlat",
+      "position": [
+        3,
+        0,
+        -8.25
+      ],
+      "heading": 90,
+      "body": "dynamic",
+      "mass": 8
+    },
+    {
+      "id": "coneFlat-3",
+      "asset": "coneFlat",
+      "position": [
+        6,
+        0,
+        -8.25
+      ],
+      "heading": 90,
+      "body": "dynamic",
+      "mass": 8
+    },
+    {
+      "id": "coneFlat-4",
+      "asset": "coneFlat",
+      "position": [
+        11,
+        0,
+        -8.25
+      ],
+      "heading": 90,
+      "body": "dynamic",
+      "mass": 8
+    },
+    {
+      "id": "coneFlat-5",
+      "asset": "coneFlat",
+      "position": [
+        14,
+        0,
+        -8.25
+      ],
+      "heading": 90,
+      "body": "dynamic",
+      "mass": 8
+    },
+    {
+      "id": "cone-1",
+      "asset": "cone",
+      "position": [
+        7.75,
+        0,
+        -2
+      ],
+      "heading": 90,
+      "body": "dynamic",
+      "mass": 8
+    },
+    {
+      "id": "cone-3",
+      "asset": "cone",
+      "position": [
+        14,
+        0,
+        -2
+      ],
+      "heading": 90,
+      "body": "dynamic",
+      "mass": 8
+    }
+  ],
+  "surfaces": [
+    {
+      "id": "ground",
+      "position": [
+        0,
+        -0.4,
+        0
+      ],
+      "size": [
+        90,
+        0.5,
+        90
+      ],
+      "heading": 0,
+      "color": "#9eaf8a",
+      "solid": true,
+      "support": true
+    },
+    {
+      "id": "court-floor",
+      "position": [
+        0,
+        -0.15,
+        0
+      ],
+      "size": [
+        30,
+        0.3,
+        30
+      ],
+      "heading": 0,
+      "color": "#747d7c",
+      "solid": true,
+      "support": true
+    }
+  ],
+  "parkingBays": [
+    {
+      "x": 4.5,
+      "z": -11.5,
+      "width": 3.4,
+      "length": 5.7,
+      "heading": 0,
+      "id": "parking-1",
+      "wheelStop": false
+    },
+    {
+      "x": 12.5,
+      "z": -11.5,
+      "width": 3.4,
+      "length": 5.7,
+      "heading": 0,
+      "id": "parking-2",
+      "wheelStop": false
+    }
+  ],
+  "challenge": "Reverse Parking",
+  "campaignOrder": 2,
+  "playableZone": {
+    "x": 0,
+    "z": 0,
+    "width": 30,
+    "length": 30
+  }
+}

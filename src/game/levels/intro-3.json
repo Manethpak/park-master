@@ -1,0 +1,619 @@
+{
+  "schemaVersion": 1,
+  "id": "intro-3",
+  "name": "A little more turns",
+  "timeLimit": 120,
+  "impactPenalty": 25,
+  "smallImpactPenalty": 10,
+  "grid": {
+    "cellSize": 5,
+    "origin": [
+      0,
+      0
+    ]
+  },
+  "spawn": {
+    "position": [
+      -10,
+      0,
+      19.75
+    ],
+    "heading": 90
+  },
+  "bay": {
+    "x": 0,
+    "z": -14.25,
+    "width": 3.4,
+    "length": 5.7,
+    "heading": 180
+  },
+  "roads": [
+    {
+      "id": "road-3",
+      "asset": "road",
+      "cell": [
+        2,
+        3
+      ],
+      "rotation": 90
+    },
+    {
+      "id": "road-4",
+      "asset": "road",
+      "cell": [
+        2,
+        2
+      ],
+      "rotation": 90
+    },
+    {
+      "id": "road-5",
+      "asset": "road",
+      "cell": [
+        2,
+        1
+      ],
+      "rotation": 90
+    },
+    {
+      "id": "road-6",
+      "asset": "road",
+      "cell": [
+        1,
+        0
+      ],
+      "rotation": 180
+    },
+    {
+      "id": "road-7",
+      "asset": "road",
+      "cell": [
+        0,
+        -1
+      ],
+      "rotation": 90
+    },
+    {
+      "id": "road-9",
+      "asset": "road",
+      "cell": [
+        0,
+        -2
+      ],
+      "rotation": 90
+    },
+    {
+      "id": "road-10",
+      "asset": "road",
+      "cell": [
+        0,
+        -3
+      ],
+      "rotation": 90
+    },
+    {
+      "id": "road-1",
+      "asset": "roadBend",
+      "cell": [
+        2,
+        4
+      ],
+      "rotation": 270
+    },
+    {
+      "id": "road-2",
+      "asset": "road",
+      "cell": [
+        -1,
+        4
+      ],
+      "rotation": 0
+    },
+    {
+      "id": "road-8",
+      "asset": "road",
+      "cell": [
+        -2,
+        4
+      ],
+      "rotation": 0
+    },
+    {
+      "id": "road-11",
+      "asset": "road",
+      "cell": [
+        0,
+        4
+      ],
+      "rotation": 180
+    },
+    {
+      "id": "road-12",
+      "asset": "road",
+      "cell": [
+        1,
+        4
+      ],
+      "rotation": 180
+    },
+    {
+      "id": "road-13",
+      "asset": "roadBend",
+      "cell": [
+        2,
+        0
+      ],
+      "rotation": 0
+    },
+    {
+      "id": "road-14",
+      "asset": "roadBend",
+      "cell": [
+        0,
+        0
+      ],
+      "rotation": 180
+    }
+  ],
+  "objects": [
+    {
+      "id": "treeSmall-1",
+      "asset": "treeSmall",
+      "position": [
+        -5,
+        0,
+        -15.5
+      ],
+      "heading": 90
+    },
+    {
+      "id": "treeSmall-2",
+      "asset": "treeSmall",
+      "position": [
+        7.25,
+        0,
+        -13.75
+      ],
+      "heading": 90
+    },
+    {
+      "id": "tree-1",
+      "asset": "tree",
+      "position": [
+        -7,
+        0,
+        -12.25
+      ],
+      "heading": 90
+    },
+    {
+      "id": "tree-2",
+      "asset": "tree",
+      "position": [
+        8,
+        0,
+        -17.25
+      ],
+      "heading": 90
+    },
+    {
+      "id": "stopSign-1",
+      "asset": "stopSign",
+      "position": [
+        3.25,
+        0,
+        -7.75
+      ],
+      "heading": 90,
+      "body": "static"
+    },
+    {
+      "id": "stopSign-2",
+      "asset": "stopSign",
+      "position": [
+        -3.25,
+        0,
+        -7.75
+      ],
+      "heading": 90,
+      "body": "static"
+    },
+    {
+      "id": "box-1",
+      "asset": "box",
+      "position": [
+        -2.5,
+        0,
+        -6.75
+      ],
+      "heading": 180,
+      "body": "dynamic",
+      "mass": 16
+    },
+    {
+      "id": "cone-1",
+      "asset": "cone",
+      "position": [
+        -1.5,
+        0,
+        -17.75
+      ],
+      "heading": 180,
+      "body": "dynamic",
+      "mass": 8
+    },
+    {
+      "id": "cone-2",
+      "asset": "cone",
+      "position": [
+        1.5,
+        0,
+        -17.75
+      ],
+      "heading": 180,
+      "body": "dynamic",
+      "mass": 8
+    },
+    {
+      "id": "houseN-1",
+      "asset": "houseN",
+      "position": [
+        2.75,
+        0,
+        8.5
+      ],
+      "heading": 270,
+      "body": "static"
+    },
+    {
+      "id": "houseK-1",
+      "asset": "houseK",
+      "position": [
+        -5,
+        0,
+        13.25
+      ],
+      "heading": 180,
+      "body": "static"
+    },
+    {
+      "id": "suv-1",
+      "asset": "suv",
+      "position": [
+        4.5,
+        0,
+        15.75
+      ],
+      "heading": 270,
+      "body": "static"
+    },
+    {
+      "id": "treeSmall-3",
+      "asset": "treeSmall",
+      "position": [
+        13.75,
+        0,
+        21.75
+      ],
+      "heading": 45
+    },
+    {
+      "id": "treeSmall-4",
+      "asset": "treeSmall",
+      "position": [
+        14,
+        0,
+        11.75
+      ],
+      "heading": 330
+    },
+    {
+      "id": "treeSmall-5",
+      "asset": "treeSmall",
+      "position": [
+        13,
+        0,
+        -3.25
+      ],
+      "heading": 0
+    },
+    {
+      "id": "planter-1",
+      "asset": "planter",
+      "position": [
+        -12,
+        0,
+        15.5
+      ],
+      "heading": 0,
+      "body": "static"
+    },
+    {
+      "id": "planter-2",
+      "asset": "planter",
+      "position": [
+        -9.25,
+        0,
+        15.5
+      ],
+      "heading": 0,
+      "body": "static"
+    },
+    {
+      "id": "tree-3",
+      "asset": "tree",
+      "position": [
+        14,
+        0,
+        17
+      ],
+      "heading": 315
+    },
+    {
+      "id": "streetSign-1",
+      "asset": "streetSign",
+      "position": [
+        12,
+        0,
+        22
+      ],
+      "heading": 270,
+      "body": "static"
+    },
+    {
+      "id": "constructionFence-1",
+      "asset": "constructionFence",
+      "position": [
+        -2.75,
+        0,
+        -16.5
+      ],
+      "heading": 0,
+      "body": "static"
+    },
+    {
+      "id": "constructionFence-2",
+      "asset": "constructionFence",
+      "position": [
+        -2.75,
+        0,
+        -14.25
+      ],
+      "heading": 0,
+      "body": "static"
+    },
+    {
+      "id": "constructionFence-3",
+      "asset": "constructionFence",
+      "position": [
+        2.75,
+        0,
+        -16.5
+      ],
+      "heading": 0,
+      "body": "static"
+    },
+    {
+      "id": "constructionFence-4",
+      "asset": "constructionFence",
+      "position": [
+        2.75,
+        0,
+        -14.25
+      ],
+      "heading": 0,
+      "body": "static"
+    },
+    {
+      "id": "constructionFence-5",
+      "asset": "constructionFence",
+      "position": [
+        2.75,
+        0,
+        -12
+      ],
+      "heading": 0,
+      "body": "static"
+    },
+    {
+      "id": "constructionFence-6",
+      "asset": "constructionFence",
+      "position": [
+        -2.75,
+        0,
+        -12
+      ],
+      "heading": 0,
+      "body": "static"
+    },
+    {
+      "id": "dumpster-1",
+      "asset": "dumpster",
+      "position": [
+        -5,
+        0,
+        1.25
+      ],
+      "heading": 0,
+      "body": "static"
+    },
+    {
+      "id": "constructionFence-7",
+      "asset": "constructionFence",
+      "position": [
+        -2.75,
+        0,
+        3.25
+      ],
+      "heading": 90,
+      "body": "static"
+    },
+    {
+      "id": "constructionFence-8",
+      "asset": "constructionFence",
+      "position": [
+        -3.5,
+        0,
+        1.25
+      ],
+      "heading": 180,
+      "body": "static"
+    },
+    {
+      "id": "constructionFence-9",
+      "asset": "constructionFence",
+      "position": [
+        -3.5,
+        0,
+        -1.25
+      ],
+      "heading": 180,
+      "body": "static"
+    },
+    {
+      "id": "constructionFence-10",
+      "asset": "constructionFence",
+      "position": [
+        -3.5,
+        0,
+        -3.5
+      ],
+      "heading": 180,
+      "body": "static"
+    },
+    {
+      "id": "constructionFence-11",
+      "asset": "constructionFence",
+      "position": [
+        -3.5,
+        0,
+        -5.75
+      ],
+      "heading": 180,
+      "body": "static"
+    },
+    {
+      "id": "constructionFence-12",
+      "asset": "constructionFence",
+      "position": [
+        -3.5,
+        0,
+        -8
+      ],
+      "heading": 180,
+      "body": "static"
+    },
+    {
+      "id": "constructionFence-13",
+      "asset": "constructionFence",
+      "position": [
+        -3.25,
+        0,
+        -10
+      ],
+      "heading": 165,
+      "body": "static"
+    },
+    {
+      "id": "cone-3",
+      "asset": "cone",
+      "position": [
+        3,
+        0,
+        -3.25
+      ],
+      "heading": 180,
+      "body": "dynamic",
+      "mass": 8
+    },
+    {
+      "id": "box-2",
+      "asset": "box",
+      "position": [
+        -5,
+        0,
+        2.75
+      ],
+      "heading": 180,
+      "body": "dynamic",
+      "mass": 16
+    },
+    {
+      "id": "box-3",
+      "asset": "box",
+      "position": [
+        -4.5,
+        0,
+        -0.25
+      ],
+      "heading": 180,
+      "body": "dynamic",
+      "mass": 16
+    },
+    {
+      "id": "houseS-1",
+      "asset": "houseS",
+      "position": [
+        8.75,
+        0,
+        -7.75
+      ],
+      "heading": 180,
+      "body": "static"
+    }
+  ],
+  "surfaces": [
+    {
+      "id": "ground",
+      "position": [
+        0,
+        -0.4,
+        0
+      ],
+      "size": [
+        90,
+        0.5,
+        90
+      ],
+      "heading": 0,
+      "color": "#9eaf8a",
+      "solid": true,
+      "support": true
+    }
+  ],
+  "parkingBays": [],
+  "editorOrder": [
+    "road:road-1",
+    "road:road-2",
+    "road:road-8",
+    "surface:ground",
+    "road:road-3",
+    "road:road-4",
+    "road:road-5",
+    "road:road-6",
+    "road:road-7",
+    "road:road-9",
+    "road:road-10",
+    "target:target",
+    "object:treeSmall-1",
+    "object:treeSmall-2",
+    "object:tree-1",
+    "object:tree-2",
+    "object:box-1",
+    "object:cone-1",
+    "object:cone-2",
+    "object:houseN-1",
+    "object:houseK-1",
+    "object:suv-1",
+    "spawn:spawn",
+    "object:stopSign-1",
+    "object:stopSign-2"
+  ],
+  "challenge": "A little more turns",
+  "playableZone": {
+    "x": 0.5,
+    "z": 2.625,
+    "width": 29,
+    "length": 42.25
+  }
+}
