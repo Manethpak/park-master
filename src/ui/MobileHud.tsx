@@ -40,7 +40,7 @@ export function MobileHud({ game, state, retry, testing, onBuilder, onCampaign, 
                 <h1 id="mobile-intro-title">{game.level.name}</h1>
                 <p className="mobile-level-meta">{DIFFICULTY_LABELS[game.level.difficulty ?? 'easy']} · {game.level.timeLimit}s</p>
                 <p>Green bay · Face the arrow · Stop for 1s</p>
-                {showTips && <MobileTips onDismiss={dismissTips} />}
+                {showTips && <MobileTips controlMode={game.controlMode} onDismiss={dismissTips} />}
                 <button className="primary-button" onClick={start}>Start<Arrow /></button>
             </div>
         </div>}

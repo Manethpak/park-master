@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { PointerEvent } from 'react';
 import type { ParkingGame } from '../game/session.ts';
+import type { ControlMode } from '../game/controls.ts';
 import './mobile-controls.css';
 
 export function useMobileLayout() {
@@ -53,20 +54,21 @@ export function useMobileTips() {
     return { showTips, dismissTips, openTips: () => setShowTips(true) };
 }
 
-export function MobileTips({ onDismiss }: { onDismiss: () => void }) {
+export function MobileTips({ onDismiss, controlMode = 'buttons' }: { onDismiss: () => void; controlMode?: ControlMode }) {
     return <div className="mobile-tips" role="group" aria-label="Driving tips">
-        <p>Hold ↑ / ↓ to drive, ■ to brake. Hold ← / → to steer.</p>
+        <p>Hold ↑ / ↓ to drive, ■ to brake. {controlMode === 'buttons' ? 'Hold ← / → to steer.' : 'Slide to steer; release to center.'}</p>
         <button className="text-button" onClick={onDismiss}>Got it</button>
     </div>;
 }
 
 export function MobileControls({ game }: { game: ParkingGame }) {
-    useEffect(() => () => game.touchControls.clear(), [game]);
+    useEffect(() => () => game.clearTouchInput(), [game]);
     const release = (event: PointerEvent<HTMLButtonElement>) => {
         game.touchControls.delete(event.pointerId);
     };
     return <div className="touch-controls" role="group" aria-label="Touch driving controls">
-        {buttons.map(([control, label, symbol]) => <button
+        {game.controlMode === 'precise' && <SteeringSlider game={game} />}
+        {buttons.filter(([control]) => game.controlMode === 'buttons' || !['left', 'right'].includes(control)).map(([control, label, symbol]) => <button
             key={control}
             className={`touch-button touch-${control}`}
             aria-label={label}
@@ -82,4 +84,50 @@ export function MobileControls({ game }: { game: ParkingGame }) {
             onLostPointerCapture={release}
         ><span aria-hidden="true">{symbol}</span><small>{label}</small></button>)}
     </div>;
+}
+
+function SteeringSlider({ game }: { game: ParkingGame }) {
+    const [value, setValue] = useState(0);
+    const pointer = useRef<number | null>(null);
+    const { portrait } = useMobileLayout();
+    useEffect(() => {
+        pointer.current = null;
+        game.touchSteering = null;
+        setValue(0);
+    }, [game, portrait]);
+    const update = (next: number) => {
+        if (game.session.phase !== 'playing') return;
+        game.touchSteering = next;
+        setValue(next);
+    };
+    const move = (event: PointerEvent<HTMLInputElement>) => {
+        if (pointer.current !== event.pointerId) return;
+        const rect = event.currentTarget.getBoundingClientRect();
+        update(Math.max(-1, Math.min(1, ((event.clientX - rect.left) / rect.width) * 2 - 1)));
+    };
+    const release = () => {
+        pointer.current = null;
+        game.touchSteering = 0;
+        setValue(0);
+    };
+    return <label className="touch-steering-slider">
+        <span aria-hidden="true">← <small>Steering</small> →</span>
+        <input type="range" aria-label="Steering" min={-1} max={1} step={0.01} value={value}
+            aria-valuetext={value === 0 ? 'Centered' : `${Math.round(Math.abs(value) * 100)}% ${value < 0 ? 'left' : 'right'}`}
+            onChange={(event) => update(Number(event.currentTarget.value))}
+            onPointerDown={(event) => {
+                if (event.button !== 0 || pointer.current !== null || game.session.phase !== 'playing') return;
+                event.preventDefault();
+                pointer.current = event.pointerId;
+                event.currentTarget.setPointerCapture(event.pointerId);
+                move(event);
+            }}
+            onPointerMove={move}
+            onPointerUp={release}
+            onPointerCancel={release}
+            onLostPointerCapture={release}
+            onBlur={release}
+            onContextMenu={(event) => event.preventDefault()}
+        />
+    </label>;
 }

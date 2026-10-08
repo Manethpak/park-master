@@ -25,12 +25,15 @@ At viewport widths of 1024px or less (or on devices with a coarse touch pointer)
 | -------- | -------------------------------------------------------------- |
 | W / Up   | Accelerate forward; brake first when reversing                 |
 | S / Down | Brake, then reverse                                            |
-| Mouse    | Move up to 240 pixels left/right of canvas center to steer      |
+| A/D or Left/Right | Steer in Buttons mode                                 |
+| Mouse    | Precise mode: move up to 240 pixels left/right of canvas center |
 | Space    | Brake                                                          |
 | Escape   | Pause / resume                                                 |
 | R        | Restart the attempt and restore all movable props              |
 
-Center the mouse to straighten the wheels. Full steering lock takes only 240 pixels from center, regardless of screen width. Reversing changes the direction the car turns, as it does with a steering wheel. Steering alone does not move or rotate the car. Once the car moves, the countdown continues during stops until you park, pause, or run out of time.
+**Settings → Steering** switches between **Buttons** (A/D or Left/Right arrow keys on desktop, left/right touch buttons on mobile) and **Precise steering** (mouse on desktop, a touch slider on mobile). The choice is saved locally when storage is available. Defaults are Precise steering on desktop and Buttons on mobile. Pedals and braking are unchanged. Buttons return steering to center when released; the slider also centers on release or cancellation. Pause, restart, focus loss, and mobile rotation clear held inputs.
+
+In Precise steering, center the mouse to straighten the wheels. Full steering lock takes only 240 pixels from center, regardless of screen width. Reversing changes the direction the car turns, as it does with a steering wheel. Steering alone does not move or rotate the car. Once the car moves, the countdown continues during stops until you park, pause, or run out of time.
 
 Park the whole car inside the highlighted bay, facing its arrow within 10 degrees, and remain below 0.15 m/s for one continuous second. The timer stops on success. Running out of time ends the attempt with zero points.
 

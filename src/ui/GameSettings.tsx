@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
+import type { ControlMode } from '../game/controls.ts';
 import './game-settings.css';
 
-export function GameSettings({ title, mobile, resumeLabel, onClose, onRestart, onLeave, leaveLabel, onFullscreen, renderHelp }: {
+export function GameSettings({ title, mobile, controlMode, onControlMode, resumeLabel, onClose, onRestart, onLeave, leaveLabel, onFullscreen, renderHelp }: {
     title: string;
     mobile: boolean;
+    controlMode: ControlMode;
+    onControlMode: (mode: ControlMode) => void;
     resumeLabel: string;
     onClose: () => void;
     onRestart: () => void;
@@ -19,6 +22,7 @@ export function GameSettings({ title, mobile, resumeLabel, onClose, onRestart, o
     close.current = onClose;
     useEffect(() => {
         const previous = document.activeElement as HTMLElement | null;
+        const dialog = card.current;
         card.current?.querySelector<HTMLButtonElement>('button')?.focus();
         const keydown = (event: KeyboardEvent) => {
             if (event.key === 'Escape') {
@@ -36,13 +40,21 @@ export function GameSettings({ title, mobile, resumeLabel, onClose, onRestart, o
         document.addEventListener('keydown', keydown, true);
         return () => {
             document.removeEventListener('keydown', keydown, true);
-            if (previous?.isConnected) previous.focus();
+            if (previous?.isConnected && (document.activeElement === document.body || dialog?.contains(document.activeElement))) previous.focus();
         };
     }, []);
     return <div className={`game-settings-backdrop ${mobile ? 'mobile-settings' : 'desktop-settings'}`}>
         <div ref={card} className="game-settings-card" role="dialog" aria-modal="true" aria-labelledby="game-settings-title">
             <h2 id="game-settings-title">{title}</h2>
             <button className="game-settings-resume" onClick={onClose}>{resumeLabel}<span aria-hidden="true">▶</span></button>
+            <div className="game-settings-controls" role="group" aria-label="Steering controls">
+                <span>Steering</span>
+                <div>
+                    <button aria-pressed={controlMode === 'buttons'} onClick={() => onControlMode('buttons')}>Buttons{controlMode === 'buttons' && <span aria-hidden="true"> ✓</span>}</button>
+                    <button aria-pressed={controlMode === 'precise'} onClick={() => onControlMode('precise')}>Precise steering{controlMode === 'precise' && <span aria-hidden="true"> ✓</span>}</button>
+                </div>
+                <p>{controlMode === 'buttons' ? (mobile ? 'Hold ← / → to steer' : 'A / D or ← / → to steer') : (mobile ? 'Slide to steer · release to center' : 'Move mouse left / right of center')}</p>
+            </div>
             <div className="game-settings-actions">
                 <button onClick={onRestart}>Restart</button>
                 <button onClick={() => setHelpShown(!helpShown)} aria-expanded={helpShown} aria-controls="game-settings-help">Help</button>

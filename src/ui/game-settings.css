@@ -5,6 +5,11 @@
 .game-settings-card .game-settings-resume { display: flex; align-items: center; justify-content: space-between; width: 100%; margin-bottom: 12px; background: var(--ink); color: var(--paper); border-color: var(--ink); }
 .game-settings-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .game-settings-help { margin-top: 12px; }
+.game-settings-controls { margin-bottom: 16px; }
+.game-settings-controls > span { display: block; margin-bottom: 8px; font-size: 13px; font-weight: 700; }
+.game-settings-controls > div { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.game-settings-controls button[aria-pressed="true"] { background: #cadba9; border-color: #526c3d; box-shadow: inset 0 0 0 1px #526c3d; }
+.game-settings-controls p { margin: 8px 0 0; font-size: 12px; }
 .game-settings-help .mobile-tips { margin: 0; }
 .game-settings-help .controls > div { font-size: 13px; }
 .game-settings-card button:active { filter: brightness(.92); }
