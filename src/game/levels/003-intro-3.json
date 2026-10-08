@@ -5,6 +5,7 @@
   "timeLimit": 120,
   "impactPenalty": 25,
   "smallImpactPenalty": 10,
+  "campaignOrder": 3,
   "grid": {
     "cellSize": 5,
     "origin": [

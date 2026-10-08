@@ -5,6 +5,7 @@
   "timeLimit": 90,
   "impactPenalty": 25,
   "smallImpactPenalty": 10,
+  "campaignOrder": 6,
   "grid": {
     "cellSize": 5,
     "origin": [
@@ -963,7 +964,6 @@
     }
   ],
   "challenge": "Reverse Parking",
-  "campaignOrder": 2,
   "playableZone": {
     "x": 0,
     "z": 0,
